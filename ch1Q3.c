@@ -11,7 +11,7 @@ typedef struct Node {
 } Node;
 
 // create a new node
-Node* createNode(const char *data){
+Node* createNode(const char *data) {
     Node *newNode = malloc(sizeof(Node));
 
     if (newNode == NULL) {
@@ -34,8 +34,7 @@ Node* createNode(const char *data){
 }
 
 // insert beginning
-void insertAtBeginning(Node** head, const char *data)
-{
+void insertAtBeginning(Node** head, const char *data) {
     // creating new node
     Node* newNode = createNode(data);
 
@@ -50,8 +49,7 @@ void insertAtBeginning(Node** head, const char *data)
 }
 
 // insert at the end
-void insertAtEnd(Node** head, const char *data)
-{
+void insertAtEnd(Node** head, const char *data) {
     // creating new node
     Node* newNode = createNode(data);
 
@@ -70,8 +68,7 @@ void insertAtEnd(Node** head, const char *data)
 }
 
 // delete beginning
-void deleteAtBeginning(Node** head)
-{
+void deleteAtBeginning(Node** head) {
     // checking if the DLL is empty
     if (*head == NULL) {
         printf("The list is already empty.\n");
@@ -87,8 +84,7 @@ void deleteAtBeginning(Node** head)
 }
 
 // delete end
-void deleteAtEnd(Node** head)
-{
+void deleteAtEnd(Node** head) {
     // checking if DLL is empty
     if (*head == NULL) {
         printf("The list is already empty.\n");
@@ -111,8 +107,7 @@ void deleteAtEnd(Node** head)
 }
 
 // print list 
-void printList(Node* head)
-{
+void printList(Node* head) {
     Node* temp = head;
     while (temp != NULL) {
         printf("%s ", temp->data);
