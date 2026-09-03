@@ -1,0 +1,31 @@
+// random functions
+
+var num1 = 2;
+var num2 = 4;
+var sum1 = num1 + num2;
+var testBool = true;
+var a = 1;
+
+fun printSum(a, b) {
+  print a + b;
+}
+
+print "Hello, world!";
+print sum1;
+
+if (testBool) {
+  print "yes";
+} else {
+  print "no";
+}
+
+while (a < 5) {
+  print a;
+  a = a + 1;
+}
+
+for (var a = 1; a < 3; a = a + 1) {
+  print a;
+}
+
+printSum(a, num1);
