@@ -1,0 +1,7 @@
+# Compiled C files
+*.exe
+*.out
+*.o
+
+# Visual Studio Code configuration
+.vscode/
