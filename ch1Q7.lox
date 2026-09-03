@@ -29,3 +29,6 @@ for (var a = 1; a < 3; a = a + 1) {
 }
 
 printSum(a, num1);
+
+print !!true;
+print !!false;
