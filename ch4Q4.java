@@ -3,6 +3,8 @@
 
 //> Scanning scanner-class
 // adding to scanner-class to accept block comments
+// added to "/" case at lines 91-100
+// added blockComment() function at lines 250-275
 package com.craftinginterpreters.lox;
 
 import java.util.ArrayList;
@@ -12,7 +14,7 @@ import java.util.Map;
 
 import static com.craftinginterpreters.lox.TokenType.*; // [static-import]
 
-class Scanner {
+class ch4Q4 {
 //> keyword-map
   private static final Map<String, TokenType> keywords;
 
