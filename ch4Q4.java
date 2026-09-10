@@ -248,30 +248,30 @@ class ch4Q4 {
 //< advance-and-add-token
 
 //< commenting out a block w/ nesting
-    private void blockComment() {
+  private void blockComment() {
     int depth = 1;
 
     while (depth > 0 && !isAtEnd()) {
         if (peek() == '\n') {
-        line++;
-        advance();
+          line++;
+          advance();
         } else if (peek() == '/' && peekNext() == '*') {
-        advance();
-        advance();
-        depth++;
+          advance();
+          advance();
+          depth++;
         } else if (peek() == '*' && peekNext() == '/') {
-        advance();
-        advance();
-        depth--;
+          advance();
+          advance();
+          depth--;
         } else {
-        advance();
+          advance();
         }
     }
 
     if (depth > 0) {
         Lox.error(line, "Unterminated block comment.");
     }
-    }
+  }
 //< commenting out a block w/ nesting
 
 }
