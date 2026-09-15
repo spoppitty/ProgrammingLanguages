@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 //< Resolving and Binding import-map
 
+import javax.management.RuntimeErrorException;
+
 /* Evaluating Expressions interpreter-class < Statements and State interpreter
 class Interpreter implements Expr.Visitor<Object> {
 */
@@ -309,6 +311,14 @@ class Interpreter implements Expr.Visitor<Object>,
           return (String)left + (String)right;
         }
 
+        if (left instanceof String && right instanceof Double) {
+          return (String)left + stringify(right);
+        }
+
+        if (left instanceof Double && right instanceof String) {
+          return stringify(left) + (String)right;
+        } 
+
 /* Evaluating Expressions binary-plus < Evaluating Expressions string-wrong-type
         break;
 */
@@ -320,8 +330,11 @@ class Interpreter implements Expr.Visitor<Object>,
       case SLASH:
 //> check-slash-operand
         checkNumberOperands(expr.operator, left, right);
-//< check-slash-operand
+        if ((double)right == 0) {
+            throw new RuntimeError(expr.operator, "Dividing by zero.");
+        }
         return (double)left / (double)right;
+//< check-slash-operand
       case STAR:
 //> check-star-operand
         checkNumberOperands(expr.operator, left, right);
