@@ -1,5 +1,4 @@
- //> Representing Code generate-ast
- // GenerateAst.java
+//> Representing Code generate-ast
 package com.craftinginterpreters.tool;
 
 import java.io.IOException;
@@ -7,7 +6,7 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
 
-public class ch6Q1 { 
+public class GenerateAst {
   public static void main(String[] args) throws IOException {
     if (args.length != 1) {
       System.err.println("Usage: generate_ast <output directory>");
@@ -23,6 +22,9 @@ public class ch6Q1 {
 //> Functions call-expr
       "Call     : Expr callee, Token paren, List<Expr> arguments",
 //< Functions call-expr
+//< comma
+      "Comma    : Expr left, Expr right",
+//< comma
 //> Classes get-ast
       "Get      : Expr object, Token name",
 //< Classes get-ast
@@ -84,11 +86,8 @@ public class ch6Q1 {
 */
 //> Control Flow while-ast
       "Var        : Token name, Expr initializer",
-      "While      : Expr condition, Stmt body",
+      "While      : Expr condition, Stmt body"
 //< Control Flow while-ast
-//< comma
-      "Comma    : Expr left, Expr right"
-//< comma
     ));
 //< Statements and State stmt-ast
 //< call-define-ast
@@ -241,5 +240,4 @@ public class ch6Q1 {
 //< cruller-accept
   }
 //< pastries
-
 }
