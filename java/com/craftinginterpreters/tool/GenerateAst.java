@@ -25,6 +25,9 @@ public class GenerateAst {
 //< comma
       "Comma    : Expr left, Expr right",
 //< comma
+//< conditional 
+  "Conditional : Expr condition, Expr thenBranch, Expr elseBranch", 
+//> conditional
 //> Classes get-ast
       "Get      : Expr object, Token name",
 //< Classes get-ast
