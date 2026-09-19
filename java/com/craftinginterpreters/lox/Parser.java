@@ -19,6 +19,29 @@ class Parser {
   private final List<Token> tokens;
   private int current = 0;
 
+//< ch8q1
+  private boolean allowExpression;
+  private boolean foundExpression = false;
+
+  Object parseRepl() {
+    allowExpression = true;
+    List<Stmt> statements = new ArrayList<>();
+    
+    while (!isAtEnd()) {
+      statements.add(declaration());
+
+      if (foundExpression) {
+        Stmt last = statements.get(statements.size() - 1);
+        return ((Stmt.Expression) last).expression;
+      }
+
+      allowExpression = false;
+    }
+
+    return statements;
+  }
+//> ch8q1
+
   Parser(List<Token> tokens) {
     this.tokens = tokens;
   }
@@ -242,13 +265,20 @@ class Parser {
     return new Stmt.While(condition, body);
   }
 //< Control Flow while-statement
-//> Statements and State parse-expression-statement
+//> Statements and State parse-expression-statement, ch8q1
   private Stmt expressionStatement() {
     Expr expr = expression();
-    consume(SEMICOLON, "Expect ';' after expression.");
+
+    if (allowExpression && isAtEnd()) {
+      foundExpression = true;
+    } 
+    else {
+      consume(SEMICOLON, "Expect ';' after expression.");
+    }
+
     return new Stmt.Expression(expr);
   }
-//< Statements and State parse-expression-statement
+//< Statements and State parse-expression-statement, ch8q1
 //> Functions parse-function
   private Stmt.Function function(String kind) {
     Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
