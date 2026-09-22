@@ -37,6 +37,9 @@ class Interpreter implements Expr.Visitor<Object>,
 //< variable initializer
   private static Object uninitialized = new Object();
 //> variable initializer
+//> ch9q3
+  private static class BreakException extends RuntimeException {}
+//< ch9q3
 
 //> Functions interpreter-constructor
   Interpreter() {
@@ -239,12 +242,22 @@ class Interpreter implements Expr.Visitor<Object>,
 //> Control Flow visit-while
   @Override
   public Void visitWhileStmt(Stmt.While stmt) {
-    while (isTruthy(evaluate(stmt.condition))) {
-      execute(stmt.body);
+    try {
+      while (isTruthy(evaluate(stmt.condition))) {
+        execute(stmt.body);
+      }
+    } catch (BreakException ex) {
+      // Do nothing.
     }
     return null;
   }
 //< Control Flow visit-while
+//> ch9q3
+  @Override
+  public Void visitBreakStmt(Stmt.Break stmt) {
+    throw new BreakException();
+  }
+//< ch9q3
 //> Statements and State visit-assign
   @Override
   public Object visitAssignExpr(Expr.Assign expr) {

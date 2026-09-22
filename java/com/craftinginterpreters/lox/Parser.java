@@ -23,6 +23,9 @@ class Parser {
   private boolean allowExpression;
   private boolean foundExpression = false;
 
+//< ch9q3, break loop depth
+  private int loopDepth = 0;
+
   Object parseRepl() {
     allowExpression = true;
     List<Stmt> statements = new ArrayList<>();
@@ -144,10 +147,23 @@ class Parser {
 //> parse-block
     if (match(LEFT_BRACE)) return new Stmt.Block(block());
 //< parse-block
+//> break
+    if (match(BREAK)) return breakStatement();
+//< break
 
     return expressionStatement();
   }
 //< Statements and State parse-statement
+//> break
+  private Stmt breakStatement() {
+    if (loopDepth == 0) {
+      error(previous(), "Must be inside a loop to use 'break'.");
+    }
+    consume(SEMICOLON, "Expect ';' after 'break'.");
+    return new Stmt.Break();
+  }
+//< break
+
 //> Control Flow for-statement
   private Stmt forStatement() {
     consume(LEFT_PAREN, "Expect '(' after 'for'.");
@@ -182,7 +198,28 @@ class Parser {
     consume(RIGHT_PAREN, "Expect ')' after for clauses.");
 //< for-increment
 //> for-body
-    Stmt body = statement();
+    try {
+      loopDepth++;
+      Stmt body = statement();
+
+      if (increment != null) {
+        body = new Stmt.Block(Arrays.asList(
+            body,
+            new Stmt.Expression(increment)));
+      }
+
+      if (condition == null) condition = new Expr.Literal(true);
+      body = new Stmt.While(condition, body);
+
+      if (initializer != null) {
+        body = new Stmt.Block(Arrays.asList(initializer, body));
+      }
+
+      return body;
+    } finally {
+      loopDepth--;
+    }
+    /*Stmt body = statement();
 
 //> for-desugar-increment
     if (increment != null) {
@@ -204,7 +241,7 @@ class Parser {
     }
 
 //< for-desugar-initializer
-    return body;
+    return body; */
 //< for-body
   }
 //< Control Flow for-statement
@@ -260,9 +297,16 @@ class Parser {
     consume(LEFT_PAREN, "Expect '(' after 'while'.");
     Expr condition = expression();
     consume(RIGHT_PAREN, "Expect ')' after condition.");
-    Stmt body = statement();
+    try {
+      loopDepth++;
+      Stmt body = statement();
 
-    return new Stmt.While(condition, body);
+      return new Stmt.While(condition, body);
+    } finally {
+      loopDepth--;
+    }
+    //Stmt body = statement();
+    //return new Stmt.While(condition, body);
   }
 //< Control Flow while-statement
 //> Statements and State parse-expression-statement, ch8q1

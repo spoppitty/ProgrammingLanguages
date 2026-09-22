@@ -56,6 +56,9 @@ public class GenerateAst {
 /* Classes class-ast < Inheritance superclass-ast
       "Class      : Token name, List<Stmt.Function> methods",
 */
+//> break ch9q3
+      "Break      : ",  
+//< break ch9q3
 //> Inheritance superclass-ast
       "Class      : Token name, Expr.Variable superclass," +
                   " List<Stmt.Function> methods",
@@ -174,12 +177,21 @@ public class GenerateAst {
 //> omit
     fieldList = fieldList.replace(",\n          ", ", ");
 //< omit
-    // Store parameters in fields.
-    String[] fields = fieldList.split(", ");
+    // Store parameters in fields. support break
+    String[] fields;
+
+    if (fieldList.isEmpty()) {
+      fields = new String[0];
+    } 
+    else {
+      fields = fieldList.split(", ");
+    }
+    /*String[] fields = fieldList.split(", ");
     for (String field : fields) {
       String name = field.split(" ")[1];
       writer.println("      this." + name + " = " + name + ";");
     }
+    */
 
     writer.println("    }");
 //> accept-method
