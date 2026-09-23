@@ -65,6 +65,12 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     return null;
   }
 //< visit-block-stmt
+//> break
+  @Override
+  public Void visitBreakStmt(Stmt.Break stmt) {
+    return null;
+  }
+//< break
 //> Classes resolver-visit-class
   @Override
   public Void visitClassStmt(Stmt.Class stmt) {
