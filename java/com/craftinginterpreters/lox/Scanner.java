@@ -86,10 +86,11 @@ class Scanner {
 //> slash
       case '/':
         if (match('/')) {
-          // A comment goes until the end of the line.
           while (peek() != '\n' && !isAtEnd()) advance();
+        } else if (match('*')) {
+          blockComment();
         } else {
-          addToken(SLASH);
+          addToken(TokenType.SLASH);
         }
         break;
 //< slash
@@ -131,6 +132,30 @@ class Scanner {
     }
   }
 //< scan-token
+//> block comment
+  private void blockComment() {
+    int depth = 1;
+
+    while (depth > 0 && !isAtEnd()) {
+      if (peek() == '/' && peekNext() == '*') {
+        advance();
+        advance();
+        depth++;
+      } else if (peek() == '*' && peekNext() == '/') {
+        advance();
+        advance();
+        depth--;
+      } else {
+        if (peek() == '\n') line++;
+        advance();
+      }
+    }
+
+    if (depth > 0) {
+      Lox.error(line, "Unterminated block comment.");
+    }
+  }
+//< block comment
 //> identifier
   private void identifier() {
     while (isAlphaNumeric(peek())) advance();
