@@ -132,6 +132,23 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     return null;
   }
 //< Classes resolver-visit-class
+//> comma
+  @Override
+  public Void visitCommaExpr(Expr.Comma expr) {
+    resolve(expr.left);
+    resolve(expr.right);
+    return null;
+  }
+//< comma
+//> conditional
+  @Override
+  public Void visitConditionalExpr(Expr.Conditional expr) {
+    resolve(expr.condition);
+    resolve(expr.thenBranch);
+    resolve(expr.elseBranch);
+    return null;
+  }
+//< conditional
 //> visit-expression-stmt
   @Override
   public Void visitExpressionStmt(Stmt.Expression stmt) {

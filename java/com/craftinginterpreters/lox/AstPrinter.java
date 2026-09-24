@@ -56,6 +56,21 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     return builder.toString();
   }
 //< Classes omit
+//> comma
+  @Override
+  public String visitCommaExpr(Expr.Comma expr) {
+    return parenthesize(",", expr.left, expr.right);
+  }
+//< comma
+//> conditional
+  @Override
+  public String visitConditionalExpr(Expr.Conditional expr) {
+    return parenthesize("?:",
+        expr.condition,
+        expr.thenBranch,
+        expr.elseBranch);
+  }
+//< conditional
 //> Statements and State omit
 
   @Override

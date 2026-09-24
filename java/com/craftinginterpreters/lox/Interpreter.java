@@ -263,6 +263,25 @@ class Interpreter implements Expr.Visitor<Object>,
     return value;
   }
 //< Statements and State visit-assign
+//> comma
+  @Override
+  public Object visitCommaExpr(Expr.Comma expr) {
+    evaluate(expr.left);
+    return evaluate(expr.right);
+  }
+//< comma
+//> conditional
+  @Override
+  public Object visitConditionalExpr(Expr.Conditional expr) {
+    Object condition = evaluate(expr.condition);
+
+    if (isTruthy(condition)) {
+      return evaluate(expr.thenBranch);
+    }
+
+    return evaluate(expr.elseBranch);
+  }
+//< conditional
 //> visit-binary
   @Override
   public Object visitBinaryExpr(Expr.Binary expr) {

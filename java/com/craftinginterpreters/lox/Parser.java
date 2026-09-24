@@ -55,10 +55,10 @@ class Parser {
     //return assignment();
 //< Statements and State expression
 //< comma Q1
-    // return comma();
+    return comma();
 //> comma Q1
 //< conditional Q2
-    return conditional();
+    //return conditional();
 //> conditional Q2
   }
 //< expression
@@ -295,39 +295,23 @@ class Parser {
 //< Statements and State block
 //< comma
   private Expr comma() {
-    Expr expr = equality();
+    Expr expr = assignment();
 
     while (match(COMMA)) {
-      Token operator = previous();
-      Expr right = equality();
-      expr = new Expr.Binary(expr, operator, right);
+      Expr right = assignment();
+      expr = new Expr.Comma(expr, right);
     }
 
     return expr;
   }
 //> comma
-//< conditional
-  private Expr conditional() {
-    Expr expr = equality();
-
-    if (match(QUESTION)) {
-      Expr thenBranch = expression();
-      consume(COLON,
-          "Expect ':' after then branch of conditional expression.");
-      Expr elseBranch = conditional();
-      expr = new Expr.Conditional(expr, thenBranch, elseBranch); // need to add to expr.java?
-    }
-
-    return expr;
-  }
-//< conditional
 //> Statements and State parse-assignment
   private Expr assignment() {
 /* Statements and State parse-assignment < Control Flow or-in-assignment
     Expr expr = equality();
 */
 //> Control Flow or-in-assignment
-    Expr expr = or();
+    Expr expr = conditional();
 //< Control Flow or-in-assignment
 
     if (match(EQUAL)) {
@@ -350,6 +334,21 @@ class Parser {
     return expr;
   }
 //< Statements and State parse-assignment
+//< conditional
+  private Expr conditional() {
+    Expr expr = or();
+
+    if (match(QUESTION)) {
+      Expr thenBranch = expression();
+      consume(COLON,
+          "Expect ':' after then branch of conditional expression.");
+      Expr elseBranch = conditional();
+      expr = new Expr.Conditional(expr, thenBranch, elseBranch); // need to add to expr.java?
+    }
+
+    return expr;
+  }
+//< conditional
 //> Control Flow or
   private Expr or() {
     Expr expr = and();
