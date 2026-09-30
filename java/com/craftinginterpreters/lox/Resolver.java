@@ -9,7 +9,7 @@ import java.util.Stack;
 class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
   private final Interpreter interpreter;
 //> scopes-field
-  private final Stack<Map<String, Boolean>> scopes = new Stack<>();
+  private final Stack<Map<String, Variable>> scopes = new Stack<>();
 //< scopes-field
 //> function-type-field
   private FunctionType currentFunction = FunctionType.NONE;
@@ -47,6 +47,15 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
   }
 
   private ClassType currentClass = ClassType.NONE;
+
+  private class Variable {
+  boolean isDefined = false;
+  final int slot;
+
+  private Variable(int slot) {
+    this.slot = slot;
+  }
+}
 
 //< Classes class-type
 //> resolve-statements
@@ -96,14 +105,14 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     if (stmt.superclass != null) {
       beginScope();
-      scopes.peek().put("super", true);
+      scopes.peek().put("super", new Variable(scopes.peek().size()));
     }
 //< Inheritance begin-super-scope
 //> resolve-methods
 
 //> resolver-begin-this-scope
     beginScope();
-    scopes.peek().put("this", true);
+    scopes.peek().put("this", new Variable(scopes.peek().size()));
 
 //< resolver-begin-this-scope
     for (Stmt.Function method : stmt.methods) {
@@ -320,7 +329,8 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
   @Override
   public Void visitVariableExpr(Expr.Variable expr) {
     if (!scopes.isEmpty() &&
-        scopes.peek().get(expr.name.lexeme) == Boolean.FALSE) {
+        scopes.peek().containsKey(expr.name.lexeme) &&
+        !scopes.peek().get(expr.name.lexeme).isDefined) {
       Lox.error(expr.name,
           "Can't read local variable in its own initializer.");
     }
@@ -364,7 +374,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 //< resolve-function
 //> begin-scope
   private void beginScope() {
-    scopes.push(new HashMap<String, Boolean>());
+    scopes.push(new HashMap<String, Variable>());
   }
 //< begin-scope
 //> end-scope
@@ -376,7 +386,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
   private void declare(Token name) {
     if (scopes.isEmpty()) return;
 
-    Map<String, Boolean> scope = scopes.peek();
+    Map<String, Variable> scope = scopes.peek();
 //> duplicate-variable
     if (scope.containsKey(name.lexeme)) {
       Lox.error(name,
@@ -384,23 +394,34 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
 //< duplicate-variable
-    scope.put(name.lexeme, false);
+    scope.put(name.lexeme, new Variable(scope.size()));
   }
 //< declare
 //> define
   private void define(Token name) {
     if (scopes.isEmpty()) return;
-    scopes.peek().put(name.lexeme, true);
+    scopes.peek().get(name.lexeme).isDefined = true;
   }
 //< define
 //> resolve-local
   private void resolveLocal(Expr expr, Token name) {
-    for (int i = scopes.size() - 1; i >= 0; i--) {
-      if (scopes.get(i).containsKey(name.lexeme)) {
-        interpreter.resolve(expr, scopes.size() - 1 - i);
-        return;
-      }
+  for (int i = scopes.size() - 1; i >= 0; i--) {
+    Map<String, Variable> scope = scopes.get(i);
+
+    if (scope.containsKey(name.lexeme)) {
+      Variable variable = scope.get(name.lexeme);
+
+      interpreter.resolve(
+          expr,
+          scopes.size() - 1 - i,
+          variable.slot
+      );
+
+      return;
     }
   }
+
+  // Not found. Assume it is global.
+}
 //< resolve-local
 }

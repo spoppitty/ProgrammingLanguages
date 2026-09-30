@@ -24,30 +24,32 @@ class Interpreter implements Expr.Visitor<Object>,
 /* Statements and State environment-field < Functions global-environment
   private Environment environment = new Environment();
 */
-//> Functions global-environment
-  final Environment globals = new Environment();
-  private Environment environment = globals;
-//< Functions global-environment
-//> Resolving and Binding locals-field
-  private final Map<Expr, Integer> locals = new HashMap<>();
-//< Resolving and Binding locals-field
+final Map<String, Object> globals = new HashMap<>();
+private Environment environment = null;
+
+private final Map<Expr, Integer> locals = new HashMap<>();
+private final Map<Expr, Integer> slots = new HashMap<>();
 //> Statements and State environment-field
 
 //< Statements and State environment-field
 //> Functions interpreter-constructor
   Interpreter() {
-    globals.define("clock", new LoxCallable() {
+    globals.put("clock", new LoxCallable() {
       @Override
-      public int arity() { return 0; }
+      public int arity() {
+        return 0;
+      }
 
       @Override
       public Object call(Interpreter interpreter,
-                         List<Object> arguments) {
+                        List<Object> arguments) {
         return (double)System.currentTimeMillis() / 1000.0;
       }
 
       @Override
-      public String toString() { return "<native fn>"; }
+      public String toString() {
+        return "<native fn>";
+      }
     });
   }
   
@@ -84,8 +86,9 @@ class Interpreter implements Expr.Visitor<Object>,
   }
 //< Statements and State execute
 //> Resolving and Binding resolve
-  void resolve(Expr expr, int depth) {
+  void resolve(Expr expr, int depth, int slot) {
     locals.put(expr, depth);
+    slots.put(expr, slot);
   }
 //< Resolving and Binding resolve
 //> Statements and State execute-block
@@ -124,12 +127,17 @@ class Interpreter implements Expr.Visitor<Object>,
     }
 
 //< Inheritance interpret-superclass
-    environment.define(stmt.name.lexeme, null);
+    int classSlot = -1;
+    if (environment != null) {
+      classSlot = environment.define(null);
+    } else {
+      globals.put(stmt.name.lexeme, null);
+    }
 //> Inheritance begin-superclass-environment
 
     if (stmt.superclass != null) {
       environment = new Environment(environment);
-      environment.define("super", superclass);
+      environment.define(superclass);
     }
 //< Inheritance begin-superclass-environment
 //> interpret-methods
@@ -164,7 +172,12 @@ class Interpreter implements Expr.Visitor<Object>,
 /* Classes interpreter-visit-class < Classes interpret-methods
     LoxClass klass = new LoxClass(stmt.name.lexeme);
 */
-    environment.assign(stmt.name, klass);
+    if (environment != null) {
+      environment.assignLocal(classSlot, klass);
+    } else {
+      globals.put(stmt.name.lexeme, klass);
+    }
+
     return null;
   }
 //< Classes interpreter-visit-class
@@ -188,7 +201,7 @@ class Interpreter implements Expr.Visitor<Object>,
     LoxFunction function = new LoxFunction(stmt, environment,
                                            false);
 //< Classes construct-function
-    environment.define(stmt.name.lexeme, function);
+    define(stmt.name, function);
     return null;
   }
 //< Functions visit-function
@@ -228,7 +241,7 @@ class Interpreter implements Expr.Visitor<Object>,
       value = evaluate(stmt.initializer);
     }
 
-    environment.define(stmt.name.lexeme, value);
+    define(stmt.name, value);
     return null;
   }
 //< Statements and State visit-var
@@ -248,16 +261,16 @@ class Interpreter implements Expr.Visitor<Object>,
 /* Statements and State visit-assign < Resolving and Binding resolved-assign
     environment.assign(expr.name, value);
 */
-//> Resolving and Binding resolved-assign
-
     Integer distance = locals.get(expr);
     if (distance != null) {
-      environment.assignAt(distance, expr.name, value);
+      environment.assignAt(
+          distance,
+          slots.get(expr),
+          value
+      );
     } else {
-      globals.assign(expr.name, value);
+      globals.put(expr.name.lexeme, value);
     }
-
-//< Resolving and Binding resolved-assign
     return value;
   }
 //< Statements and State visit-assign
@@ -419,26 +432,26 @@ class Interpreter implements Expr.Visitor<Object>,
   @Override
   public Object visitSuperExpr(Expr.Super expr) {
     int distance = locals.get(expr);
-    LoxClass superclass = (LoxClass)environment.getAt(
-        distance, "super");
-//> super-find-this
 
-    LoxInstance object = (LoxInstance)environment.getAt(
-        distance - 1, "this");
-//< super-find-this
-//> super-find-method
+    LoxClass superclass =
+        (LoxClass)environment.getAt(
+            distance,
+            slots.get(expr)
+        );
+
+    LoxInstance object =
+        (LoxInstance)environment.getAt(distance - 1, 0);
 
     LoxFunction method = superclass.findMethod(expr.method.lexeme);
-//> super-no-method
 
     if (method == null) {
-      throw new RuntimeError(expr.method,
-          "Undefined property '" + expr.method.lexeme + "'.");
+      throw new RuntimeError(
+          expr.method,
+          "Undefined property '" + expr.method.lexeme + "'."
+      );
     }
 
-//< super-no-method
     return method.bind(object);
-//< super-find-method
   }
 //< Inheritance interpreter-visit-super
 //> Classes interpreter-visit-this
@@ -481,11 +494,22 @@ class Interpreter implements Expr.Visitor<Object>,
 //> Resolving and Binding look-up-variable
   private Object lookUpVariable(Token name, Expr expr) {
     Integer distance = locals.get(expr);
+
     if (distance != null) {
-      return environment.getAt(distance, name.lexeme);
-    } else {
-      return globals.get(name);
+      return environment.getAt(
+          distance,
+          slots.get(expr)
+      );
     }
+
+    if (globals.containsKey(name.lexeme)) {
+      return globals.get(name.lexeme);
+    }
+
+    throw new RuntimeError(
+        name,
+        "Undefined variable '" + name.lexeme + "'."
+    );
   }
 //< Resolving and Binding look-up-variable
 //< Statements and State visit-variable
@@ -518,6 +542,15 @@ class Interpreter implements Expr.Visitor<Object>,
     return a.equals(b);
   }
 //< is-equal
+//> define
+  private void define(Token name, Object value) {
+    if (environment != null) {
+      environment.define(value);
+    } else {
+      globals.put(name.lexeme, value);
+    }
+  }
+//< define
 //> stringify
   private String stringify(Object object) {
     if (object == null) return "nil";
