@@ -16,3 +16,6 @@ xcuserdata/
 # Dart stuff.
 /tool/.dart_tool/
 /tool/.packages
+
+# Visual Studio Code configuration
+.vscode/
