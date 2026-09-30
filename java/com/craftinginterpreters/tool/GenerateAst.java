@@ -22,6 +22,9 @@ public class GenerateAst {
 //> Functions call-expr
       "Call     : Expr callee, Token paren, List<Expr> arguments",
 //< Functions call-expr
+//>
+    "Function : List<Token> parameters, List<Stmt> body",
+//<
 //> Classes get-ast
       "Get      : Expr object, Token name",
 //< Classes get-ast
@@ -62,8 +65,10 @@ public class GenerateAst {
 //< Inheritance superclass-ast
       "Expression : Expr expression",
 //> Functions function-ast
-      "Function   : Token name, List<Token> params," +
-                  " List<Stmt> body",
+      //"Function   : Token name, List<Token> params," +
+                  //" List<Stmt> body",
+  // ch10q2
+  "Function   : Token name, Expr.Function function",
 //< Functions function-ast
 //> Control Flow if-ast
       "If         : Expr condition, Stmt thenBranch," +
