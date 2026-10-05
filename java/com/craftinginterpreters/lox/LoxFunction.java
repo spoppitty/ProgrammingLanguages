@@ -51,20 +51,19 @@ class LoxFunction implements LoxCallable {
   public int arity() {
     return declaration.params.size();
   }
+  public boolean isGetter() {
+    return declaration.params == null;
+  }
 //< function-arity
 //> function-call
   @Override
-  public Object call(Interpreter interpreter,
-                     List<Object> arguments) {
-/* Functions function-call < Functions call-closure
-    Environment environment = new Environment(interpreter.globals);
-*/
-//> call-closure
+  public Object call(Interpreter interpreter, List<Object> arguments) {
     Environment environment = new Environment(closure);
-//< call-closure
-    for (int i = 0; i < declaration.params.size(); i++) {
-      environment.define(declaration.params.get(i).lexeme,
-          arguments.get(i));
+    if (declaration.params != null) {
+      for (int i = 0; i < declaration.params.size(); i++) {
+        environment.define(declaration.params.get(i).lexeme,
+            arguments.get(i));
+      }
     }
 
 /* Functions function-call < Functions catch-return

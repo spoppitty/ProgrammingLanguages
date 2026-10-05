@@ -126,14 +126,12 @@ class Interpreter implements Expr.Visitor<Object>,
     }
 
     environment.define(stmt.name.lexeme, null);
-
     if (stmt.superclass != null) {
       environment = new Environment(environment);
       environment.define("super", superclass);
     }
 
     Map<String, LoxFunction> classMethods = new HashMap<>();
-
     for (Stmt.Function method : stmt.classMethods) {
       LoxFunction function =
           new LoxFunction(method, environment, false);
@@ -148,14 +146,12 @@ class Interpreter implements Expr.Visitor<Object>,
         classMethods);
 
     Map<String, LoxFunction> methods = new HashMap<>();
-
     for (Stmt.Function method : stmt.methods) {
       LoxFunction function =
           new LoxFunction(
               method,
               environment,
               method.name.lexeme.equals("init"));
-
       methods.put(method.name.lexeme, function);
     }
 
@@ -164,7 +160,6 @@ class Interpreter implements Expr.Visitor<Object>,
         stmt.name.lexeme,
         (LoxClass) superclass,
         methods);
-
     if (stmt.superclass != null) {
       environment = environment.enclosing;
     }
@@ -372,7 +367,13 @@ class Interpreter implements Expr.Visitor<Object>,
   public Object visitGetExpr(Expr.Get expr) {
     Object object = evaluate(expr.object);
     if (object instanceof LoxInstance) {
-      return ((LoxInstance) object).get(expr.name);
+      Object result = ((LoxInstance) object).get(expr.name);
+      if (result instanceof LoxFunction &&
+          ((LoxFunction) result).isGetter()) {
+        result = ((LoxFunction) result).call(this, null);
+      }
+
+      return result;
     }
 
     throw new RuntimeError(expr.name,
