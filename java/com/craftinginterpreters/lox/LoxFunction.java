@@ -49,6 +49,7 @@ class LoxFunction implements LoxCallable {
 //> function-arity
   @Override
   public int arity() {
+    if (declaration.params == null) return 0;
     return declaration.params.size();
   }
   public boolean isGetter() {
