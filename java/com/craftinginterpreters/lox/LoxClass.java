@@ -1,7 +1,6 @@
 //> Classes lox-class
 package com.craftinginterpreters.lox;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -11,51 +10,28 @@ class LoxClass {
 //> lox-class-callable
 class LoxClass extends LoxInstance implements LoxCallable {
   final String name;
+  private final LoxClass superclass;
   private final Map<String, LoxFunction> methods;
 
-  LoxClass(LoxClass metaclass, String name,
-        Map<String, LoxFunction> methods) {
+  LoxClass(LoxClass metaclass,
+           String name,
+           LoxClass superclass,
+           Map<String, LoxFunction> methods) {
     super(metaclass);
     this.name = name;
+    this.superclass = superclass;
     this.methods = methods;
   }
-//< lox-class-methods
-//> lox-class-find-method
+
   LoxFunction findMethod(String name) {
     if (methods.containsKey(name)) {
       return methods.get(name);
     }
 
-//> Inheritance find-method-recurse-superclass
     if (superclass != null) {
       return superclass.findMethod(name);
     }
 
-//< Inheritance find-method-recurse-superclass
-    return null;
-  }
-//< lox-class-find-method
-  @Override
-  public Void visitClassStmt(Stmt.Class stmt) {
-    environment.define(stmt.name.lexeme, null);
-    Map<String, LoxFunction> classMethods = new HashMap<>();
-    for (Stmt.Function method : stmt.classMethods) {
-      LoxFunction function = new LoxFunction(method, environment, false);
-      classMethods.put(method.name.lexeme, function);
-    }
-
-    LoxClass metaclass = new LoxClass(null,
-        stmt.name.lexeme + " metaclass", classMethods);
-
-    Map<String, LoxFunction> methods = new HashMap<>();
-    for (Stmt.Function method : stmt.methods) {
-      LoxFunction function = new LoxFunction(method, environment,
-          method.name.lexeme.equals("init"));
-      methods.put(method.name.lexeme, function);
-    }
-
-    LoxClass klass = new LoxClass(metaclass, stmt.name.lexeme, methods);
-    environment.assign(stmt.name, klass);
     return null;
   }
 
@@ -63,6 +39,7 @@ class LoxClass extends LoxInstance implements LoxCallable {
   public String toString() {
     return name;
   }
+
 //> lox-class-call-arity
   @Override
   public Object call(Interpreter interpreter,
