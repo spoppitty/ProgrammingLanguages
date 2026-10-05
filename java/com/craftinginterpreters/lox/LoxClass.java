@@ -1,6 +1,7 @@
 //> Classes lox-class
 package com.craftinginterpreters.lox;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -8,29 +9,13 @@ import java.util.Map;
 class LoxClass {
 */
 //> lox-class-callable
-class LoxClass implements LoxCallable {
-//< lox-class-callable
+class LoxClass extends LoxInstance implements LoxCallable {
   final String name;
-//> Inheritance lox-class-superclass-field
-  final LoxClass superclass;
-//< Inheritance lox-class-superclass-field
-/* Classes lox-class < Classes lox-class-methods
-
-  LoxClass(String name) {
-    this.name = name;
-  }
-*/
-//> lox-class-methods
   private final Map<String, LoxFunction> methods;
 
-/* Classes lox-class-methods < Inheritance lox-class-constructor
-  LoxClass(String name, Map<String, LoxFunction> methods) {
-*/
-//> Inheritance lox-class-constructor
-  LoxClass(String name, LoxClass superclass,
-           Map<String, LoxFunction> methods) {
-    this.superclass = superclass;
-//< Inheritance lox-class-constructor
+  LoxClass(LoxClass metaclass, String name,
+        Map<String, LoxFunction> methods) {
+    super(metaclass);
     this.name = name;
     this.methods = methods;
   }
@@ -50,6 +35,29 @@ class LoxClass implements LoxCallable {
     return null;
   }
 //< lox-class-find-method
+  @Override
+  public Void visitClassStmt(Stmt.Class stmt) {
+    environment.define(stmt.name.lexeme, null);
+    Map<String, LoxFunction> classMethods = new HashMap<>();
+    for (Stmt.Function method : stmt.classMethods) {
+      LoxFunction function = new LoxFunction(method, environment, false);
+      classMethods.put(method.name.lexeme, function);
+    }
+
+    LoxClass metaclass = new LoxClass(null,
+        stmt.name.lexeme + " metaclass", classMethods);
+
+    Map<String, LoxFunction> methods = new HashMap<>();
+    for (Stmt.Function method : stmt.methods) {
+      LoxFunction function = new LoxFunction(method, environment,
+          method.name.lexeme.equals("init"));
+      methods.put(method.name.lexeme, function);
+    }
+
+    LoxClass klass = new LoxClass(metaclass, stmt.name.lexeme, methods);
+    environment.assign(stmt.name, klass);
+    return null;
+  }
 
   @Override
   public String toString() {
