@@ -78,18 +78,31 @@ class Parser {
   private Stmt classDeclaration() {
     Token name = consume(IDENTIFIER, "Expect class name.");
 
+    Expr.Variable superclass = null;
+    if (match(LESS)) {
+      consume(IDENTIFIER, "Expect superclass name.");
+      superclass = new Expr.Variable(previous());
+    }
+
     List<Stmt.Function> methods = new ArrayList<>();
     List<Stmt.Function> classMethods = new ArrayList<>();
+
     consume(LEFT_BRACE, "Expect '{' before class body.");
 
     while (!check(RIGHT_BRACE) && !isAtEnd()) {
       boolean isClassMethod = match(CLASS);
-      (isClassMethod ? classMethods : methods).add(function("method"));
+
+      (isClassMethod ? classMethods : methods)
+          .add(function("method"));
     }
 
     consume(RIGHT_BRACE, "Expect '}' after class body.");
 
-    return new Stmt.Class(name, methods, classMethods);
+    return new Stmt.Class(
+        name,
+        superclass,
+        methods,
+        classMethods);
   }
 //< Classes parse-class-declaration
 //> Statements and State parse-statement

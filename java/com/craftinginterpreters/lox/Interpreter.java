@@ -172,28 +172,6 @@ class Interpreter implements Expr.Visitor<Object>,
     environment.assign(stmt.name, klass);
     return null;
   }
-
-/* Classes interpret-methods < Inheritance interpreter-construct-class
-    LoxClass klass = new LoxClass(stmt.name.lexeme, methods);
-*/
-//> Inheritance interpreter-construct-class
-    LoxClass klass = new LoxClass(stmt.name.lexeme,
-        (LoxClass)superclass, methods);
-//> end-superclass-environment
-
-    if (superclass != null) {
-      environment = environment.enclosing;
-    }
-//< end-superclass-environment
-
-//< Inheritance interpreter-construct-class
-//< interpret-methods
-/* Classes interpreter-visit-class < Classes interpret-methods
-    LoxClass klass = new LoxClass(stmt.name.lexeme);
-*/
-    environment.assign(stmt.name, klass);
-    return null;
-  }
 //< Classes interpreter-visit-class
 //> Statements and State visit-expression-stmt
   @Override
