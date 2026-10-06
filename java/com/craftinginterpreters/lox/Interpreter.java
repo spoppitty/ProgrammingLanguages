@@ -457,7 +457,7 @@ class Interpreter implements Expr.Visitor<Object>,
 //< super-find-this
 //> super-find-method
 
-    LoxFunction method = superclass.findMethod(expr.method.lexeme);
+    LoxFunction method = superclass.findMethod(object, expr.method.lexeme);
 //> super-no-method
 
     if (method == null) {
@@ -466,7 +466,7 @@ class Interpreter implements Expr.Visitor<Object>,
     }
 
 //< super-no-method
-    return method.bind(object);
+    return method;
 //< super-find-method
   }
 //< Inheritance interpreter-visit-super

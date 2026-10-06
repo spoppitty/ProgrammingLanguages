@@ -43,14 +43,7 @@ class LoxClass extends LoxInstance implements LoxCallable {
     return null;
   }
 //< find super
-//> bind inner
-  LoxFunction bind(LoxInstance instance, LoxFunction inner) {
-    Environment environment = new Environment(closure);
-    environment.define("this", instance);
-    environment.define("inner", inner);
-    return new LoxFunction(name, declaration, environment, isInitializer);
-  }
-//< bind inner
+
 //> extension method
   void addMethod(String name, LoxFunction method) {
     methods.put(name, method);
