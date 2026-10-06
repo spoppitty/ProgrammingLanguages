@@ -1,0 +1,10 @@
+var testArray = Array(4);
+
+testArray.set(0, "cats");
+testArray.set(1, 21);
+testArray.set(2, true);
+testArray.set(3, nil);
+
+print testArray.get(0);
+print testArray;
+print testArray.length;
