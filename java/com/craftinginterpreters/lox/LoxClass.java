@@ -23,18 +23,34 @@ class LoxClass extends LoxInstance implements LoxCallable {
     this.methods = methods;
   }
 
-  LoxFunction findMethod(String name) {
-    if (methods.containsKey(name)) {
-      return methods.get(name);
+//> find super
+  LoxFunction findMethod(LoxInstance instance, String name) {
+    LoxFunction method = null;
+    LoxFunction inner = null;
+    LoxClass klass = this;
+    while (klass != null) {
+      if (klass.methods.containsKey(name)) {
+        inner = method;
+        method = klass.methods.get(name);
+      }
+      klass = klass.superclass;
     }
 
-    if (superclass != null) {
-      return superclass.findMethod(name);
+    if (method != null) {
+      return method.bind(instance, inner);
     }
 
     return null;
   }
-
+//< find super
+//> bind inner
+  LoxFunction bind(LoxInstance instance, LoxFunction inner) {
+    Environment environment = new Environment(closure);
+    environment.define("this", instance);
+    environment.define("inner", inner);
+    return new LoxFunction(name, declaration, environment, isInitializer);
+  }
+//< bind inner
 //> extension method
   void addMethod(String name, LoxFunction method) {
     methods.put(name, method);
@@ -48,17 +64,16 @@ class LoxClass extends LoxInstance implements LoxCallable {
 
 //> lox-class-call-arity
   @Override
-  public Object call(Interpreter interpreter,
-                     List<Object> arguments) {
-    LoxInstance instance = new LoxInstance(this);
-//> lox-class-call-initializer
-    LoxFunction initializer = findMethod("init");
-    if (initializer != null) {
-      initializer.bind(instance).call(interpreter, arguments);
-    }
+  public Object call(Interpreter interpreter, List<Object> arguments) {
+      LoxInstance instance = new LoxInstance(this);
 
-//< lox-class-call-initializer
-    return instance;
+      LoxFunction initializer = findMethod(instance, "init");
+
+      if (initializer != null) {
+          initializer.call(interpreter, arguments);
+      }
+
+      return instance;
   }
 
   @Override
@@ -67,7 +82,7 @@ class LoxClass extends LoxInstance implements LoxCallable {
     return 0;
 */
 //> lox-initializer-arity
-    LoxFunction initializer = findMethod("init");
+    LoxFunction initializer = findMethod(null, "init");
     if (initializer == null) return 0;
     return initializer.arity();
 //< lox-initializer-arity
