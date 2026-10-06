@@ -62,6 +62,9 @@ class Parser {
 //> Classes match-class
       if (match(CLASS)) return classDeclaration();
 //< Classes match-class
+//> extension method
+      if (match(EXTEND)) return extensionDeclaration();
+//< extension method
 //> Functions match-fun
       if (match(FUN)) return function("function");
 //< Functions match-fun
@@ -105,6 +108,25 @@ class Parser {
         classMethods);
   }
 //< Classes parse-class-declaration
+//> extension
+  private Stmt extensionDeclaration() {
+    Token className = consume(
+        IDENTIFIER,
+        "Expect class name after 'extend'.");
+
+    List<Stmt.Function> methods = new ArrayList<>();
+
+    consume(LEFT_BRACE, "Expect '{' before extension body.");
+
+    while (!check(RIGHT_BRACE) && !isAtEnd()) {
+      methods.add(function("method"));
+    }
+
+    consume(RIGHT_BRACE, "Expect '}' after extension body.");
+
+    return new Stmt.Extension(className, methods);
+  }
+//< extension
 //> Statements and State parse-statement
   private Stmt statement() {
 //> Control Flow match-for
@@ -254,10 +276,8 @@ class Parser {
 //> Functions parse-function
   private Stmt.Function function(String kind) {
     Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
-
     List<Token> parameters = null;
 
-    // Allow omitting the parameter list entirely in method getters.
     if (!kind.equals("method") || check(LEFT_PAREN)) {
       consume(LEFT_PAREN, "Expect '(' after " + kind + " name.");
       parameters = new ArrayList<>();
@@ -266,7 +286,6 @@ class Parser {
           if (parameters.size() >= 255) {
             error(peek(), "Can't have more than 255 parameters.");
           }
-
           parameters.add(consume(IDENTIFIER, "Expect parameter name."));
         } while (match(COMMA));
       }

@@ -1,0 +1,20 @@
+class Person {
+  init(name) {
+    this.name = name;
+  }
+}
+
+extend Person {
+  sayName() {
+    print this.name;
+  }
+
+  sayHello(message) {
+    print message + ", " + this.name;
+  }
+}
+
+var person = Person("Sarah");
+
+person.sayName();
+person.sayHello("Hello");

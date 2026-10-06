@@ -168,6 +168,29 @@ class Interpreter implements Expr.Visitor<Object>,
     return null;
   }
 //< Classes interpreter-visit-class
+//> visit-extension-stmt
+  @Override
+  public Void visitExtensionStmt(Stmt.Extension stmt) {
+    Object target = environment.get(stmt.className);
+
+    if (!(target instanceof LoxClass)) {
+      throw new RuntimeError(
+          stmt.className,
+          "Can only extend a class.");
+    }
+
+    LoxClass klass = (LoxClass) target;
+
+    for (Stmt.Function method : stmt.methods) {
+      LoxFunction function =
+          new LoxFunction(method, environment, false);
+
+      klass.addMethod(method.name.lexeme, function);
+    }
+
+    return null;
+  }
+//< visit-extension-stmt
 //> Statements and State visit-expression-stmt
   @Override
   public Void visitExpressionStmt(Stmt.Expression stmt) {

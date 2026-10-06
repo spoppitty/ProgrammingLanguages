@@ -136,6 +136,25 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     return null;
   }
 //< Classes resolver-visit-class
+//> visit-extension-stmt
+  @Override
+  public Void visitExtensionStmt(Stmt.Extension stmt) {
+    ClassType enclosingClass = currentClass;
+    currentClass = ClassType.CLASS;
+
+    beginScope();
+    scopes.peek().put("this", true);
+
+    for (Stmt.Function method : stmt.methods) {
+      resolveFunction(method, FunctionType.METHOD);
+    }
+
+    endScope();
+
+    currentClass = enclosingClass;
+    return null;
+  } 
+//< visit-extension-stmt
 //> visit-expression-stmt
   @Override
   public Void visitExpressionStmt(Stmt.Expression stmt) {
