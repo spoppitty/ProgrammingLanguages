@@ -72,8 +72,7 @@ static void runtimeError(const char* format, ...) {
     ObjFunction* function = frame->closure->function;
 //< Closures runtime-error-function
     size_t instruction = frame->ip - function->chunk.code - 1;
-    fprintf(stderr, "[line %d] in ", // [minus]
-            function->chunk.lines[instruction]);
+    fprintf(stderr, "[line %d] in ", getLine(&function->chunk, instruction));
     if (function->name == NULL) {
       fprintf(stderr, "script\n");
     } else {
