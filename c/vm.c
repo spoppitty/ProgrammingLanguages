@@ -95,6 +95,7 @@ static void defineNative(const char* name, NativeFn function) {
 //< Calls and Functions define-native
 
 void initVM() {
+  initMemory();
 //> call-reset-stack
   resetStack();
 //< call-reset-stack

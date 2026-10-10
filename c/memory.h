@@ -31,6 +31,8 @@
 
 void* reallocate(void* pointer, size_t oldSize, size_t newSize);
 //< grow-array
+void initMemory();
+
 //> Garbage Collection mark-object-h
 void markObject(Obj* object);
 //< Garbage Collection mark-object-h

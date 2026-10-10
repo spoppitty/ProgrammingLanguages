@@ -1,5 +1,6 @@
 //> Chunks of Bytecode memory-c
 #include <stdlib.h>
+#include <string.h>
 
 //> Garbage Collection memory-include-compiler
 #include "compiler.h"
@@ -20,34 +21,180 @@
 #define GC_HEAP_GROW_FACTOR 2
 //< Garbage Collection heap-grow-factor
 
-void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
-//> Garbage Collection updated-bytes-allocated
-  vm.bytesAllocated += newSize - oldSize;
-//< Garbage Collection updated-bytes-allocated
-//> Garbage Collection call-collect
-  if (newSize > oldSize) {
-#ifdef DEBUG_STRESS_GC
-    collectGarbage();
-#endif
-//> collect-on-next
+#define HEAP_SIZE (64 * 1024 * 1024)
+#define ALIGNMENT sizeof(void*)
 
-    if (vm.bytesAllocated > vm.nextGC) {
-      collectGarbage();
-    }
-//< collect-on-next
+typedef struct Block {
+  size_t size;
+  bool free;
+  struct Block* next;
+  struct Block* previous;
+} Block;
+
+static void* heapMemory = NULL;
+static Block* firstBlock = NULL;
+
+static size_t alignSize(size_t size) {
+  return (size + ALIGNMENT - 1) &
+         ~(ALIGNMENT - 1);
+}
+
+void initMemory() {
+  heapMemory = malloc(HEAP_SIZE);
+
+  if (heapMemory == NULL) {
+    exit(1);
   }
 
-//< Garbage Collection call-collect
+  firstBlock = (Block*)heapMemory;
+  firstBlock->size = HEAP_SIZE - sizeof(Block);
+  firstBlock->free = true;
+  firstBlock->next = NULL;
+  firstBlock->previous = NULL;
+}
+
+static Block* findFreeBlock(size_t size) {
+  Block* block = firstBlock;
+
+  while (block != NULL) {
+    if (block->free && block->size >= size) {
+      return block;
+    }
+
+    block = block->next;
+  }
+
+  return NULL;
+}
+
+static void splitBlock(Block* block, size_t size) {
+  if (block->size < size + sizeof(Block) + ALIGNMENT) {
+    return;
+  }
+
+  Block* newBlock = (Block*)((char*)block +
+      sizeof(Block) + size);
+
+  newBlock->size =
+      block->size - size - sizeof(Block);
+  newBlock->free = true;
+  newBlock->next = block->next;
+  newBlock->previous = block;
+
+  if (newBlock->next != NULL) {
+    newBlock->next->previous = newBlock;
+  }
+
+  block->next = newBlock;
+  block->size = size;
+}
+
+static void mergeWithNext(Block* block) {
+  Block* next = block->next;
+
+  if (next == NULL || !next->free) {
+    return;
+  }
+
+  block->size += sizeof(Block) + next->size;
+  block->next = next->next;
+
+  if (block->next != NULL) {
+    block->next->previous = block;
+  }
+}
+
+static void releaseBlock(Block* block) {
+  block->free = true;
+
+  if (block->next != NULL && block->next->free) {
+    mergeWithNext(block);
+  }
+
+  if (block->previous != NULL &&
+      block->previous->free) {
+    mergeWithNext(block->previous);
+  }
+}
+
+void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
   if (newSize == 0) {
-    free(pointer);
+    if (pointer != NULL) {
+      Block* block = (Block*)pointer - 1;
+      releaseBlock(block);
+    }
+
+    vm.bytesAllocated -= oldSize;
     return NULL;
   }
 
-  void* result = realloc(pointer, newSize);
-//> out-of-memory
-  if (result == NULL) exit(1);
-//< out-of-memory
-  return result;
+  size_t requestedSize = alignSize(newSize);
+
+  // Allocate a new block.
+  if (pointer == NULL) {
+    Block* block = findFreeBlock(requestedSize);
+
+    if (block == NULL) {
+      collectGarbage();
+      block = findFreeBlock(requestedSize);
+    }
+
+    if (block == NULL) {
+      exit(1);
+    }
+
+    splitBlock(block, requestedSize);
+    block->free = false;
+
+    vm.bytesAllocated += newSize;
+
+    return (void*)(block + 1);
+  }
+
+  Block* block = (Block*)pointer - 1;
+
+  // The current block is already large enough.
+  if (block->size >= requestedSize) {
+    splitBlock(block, requestedSize);
+    vm.bytesAllocated += newSize - oldSize;
+    return pointer;
+  }
+
+  // Try expanding into the following free block.
+  if (block->next != NULL &&
+      block->next->free &&
+      block->size + sizeof(Block) +
+          block->next->size >= requestedSize) {
+    mergeWithNext(block);
+    splitBlock(block, requestedSize);
+
+    vm.bytesAllocated += newSize - oldSize;
+    return pointer;
+  }
+
+  // Allocate elsewhere and copy the old contents.
+  Block* newBlock = findFreeBlock(requestedSize);
+
+  if (newBlock == NULL) {
+    collectGarbage();
+    newBlock = findFreeBlock(requestedSize);
+  }
+
+  if (newBlock == NULL) {
+    exit(1);
+  }
+
+  splitBlock(newBlock, requestedSize);
+  newBlock->free = false;
+
+  void* newPointer = (void*)(newBlock + 1);
+  memcpy(newPointer, pointer, oldSize);
+
+  releaseBlock(block);
+
+  vm.bytesAllocated += newSize - oldSize;
+
+  return newPointer;
 }
 //> Garbage Collection mark-object
 void markObject(Obj* object) {
@@ -68,13 +215,11 @@ void markObject(Obj* object) {
 //> add-to-gray-stack
 
   if (vm.grayCapacity < vm.grayCount + 1) {
-    vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
-    vm.grayStack = (Obj**)realloc(vm.grayStack,
-                                  sizeof(Obj*) * vm.grayCapacity);
-//> exit-gray-stack
+    int oldCapacity = vm.grayCapacity;
+    int newCapacity = GROW_CAPACITY(oldCapacity);
 
-    if (vm.grayStack == NULL) exit(1);
-//< exit-gray-stack
+    vm.grayStack = (Obj**)reallocate(vm.grayStack, sizeof(Obj*) * oldCapacity, sizeof(Obj*) * newCapacity);
+    vm.grayCapacity = newCapacity;
   }
 
   vm.grayStack[vm.grayCount++] = object;
@@ -343,7 +488,10 @@ void freeObjects() {
   }
 //> Garbage Collection free-gray-stack
 
-  free(vm.grayStack);
+  reallocate(vm.grayStack, sizeof(Obj*) * vm.grayCapacity, 0);
+
+  vm.grayStack = NULL;
+  vm.grayCapacity = 0;
 //< Garbage Collection free-gray-stack
 }
 //< Strings free-objects
