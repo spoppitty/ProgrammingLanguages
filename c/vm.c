@@ -683,7 +683,7 @@ static InterpretResult run() {
 //< Types of Values op-arithmetic
 //> Types of Values op-not
       case OP_NOT:
-        push(BOOL_VAL(isFalsey(pop())));
+        vm.stack[vm.stackCount - 1] = BOOL_VAL(isFalsey(vm.stack[vm.stackCount - 1]));
         break;
 //< Types of Values op-not
 //> Types of Values op-negate
@@ -692,7 +692,8 @@ static InterpretResult run() {
           runtimeError("Operand must be a number.");
           return INTERPRET_RUNTIME_ERROR;
         }
-        push(NUMBER_VAL(-AS_NUMBER(pop())));
+
+        vm.stack[vm.stackCount - 1] = NUMBER_VAL(-AS_NUMBER(vm.stack[vm.stackCount - 1]));
         break;
 //< Types of Values op-negate
 //> Global Variables interpret-print
