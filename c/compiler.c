@@ -36,6 +36,7 @@ typedef struct {
 typedef enum {
   PREC_NONE,
   PREC_ASSIGNMENT,  // =
+  PREC_CONDITIONAL,
   PREC_OR,          // or
   PREC_AND,         // and
   PREC_EQUALITY,    // == !=
@@ -621,6 +622,17 @@ static void binary(bool canAssign) {
   }
 }
 //< Compiling Expressions binary
+static void conditional(bool canAssign) {
+  // Parse the expression after '?'.
+  parsePrecedence(PREC_CONDITIONAL);
+
+  consume(
+      TOKEN_COLON,
+      "Expect ':' after then branch of conditional operator.");
+
+  // Parse the expression after ':'.
+  parsePrecedence(PREC_ASSIGNMENT);
+}
 //> Calls and Functions compile-call
 static void call(bool canAssign) {
   uint8_t argCount = argumentList();
@@ -870,6 +882,8 @@ ParseRule rules[] = {
   [TOKEN_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE}, // [big]
   [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
   [TOKEN_COMMA]         = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_QUESTION]      = {NULL, conditional, PREC_CONDITIONAL},
+  [TOKEN_COLON]         = {NULL, NULL,       PREC_NONE},
 /* Compiling Expressions rules < Classes and Instances table-dot
   [TOKEN_DOT]           = {NULL,     NULL,   PREC_NONE},
 */
