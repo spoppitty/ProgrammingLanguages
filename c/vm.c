@@ -33,9 +33,13 @@ static Value clockNative(int argCount, Value* args) {
 //< Calls and Functions clock-native
 //> reset-stack
 static void resetStack() {
-  vm.stackCount = 0;
+  vm.stackTop = vm.stack;
+//> Calls and Functions reset-frame-count
   vm.frameCount = 0;
+//< Calls and Functions reset-frame-count
+//> Closures init-open-upvalues
   vm.openUpvalues = NULL;
+//< Closures init-open-upvalues
 }
 //< reset-stack
 //> Types of Values runtime-error
@@ -68,7 +72,8 @@ static void runtimeError(const char* format, ...) {
     ObjFunction* function = frame->closure->function;
 //< Closures runtime-error-function
     size_t instruction = frame->ip - function->chunk.code - 1;
-    fprintf(stderr, "[line %d] in ", getLine(&function->chunk, instruction));
+    fprintf(stderr, "[line %d] in ", // [minus]
+            function->chunk.lines[instruction]);
     if (function->name == NULL) {
       fprintf(stderr, "script\n");
     } else {
@@ -91,10 +96,6 @@ static void defineNative(const char* name, NativeFn function) {
 //< Calls and Functions define-native
 
 void initVM() {
-  initMemory();
-
-  vm.stack = NULL;
-  vm.stackCapacity = 0;
 //> call-reset-stack
   resetStack();
 //< call-reset-stack
@@ -144,33 +145,22 @@ void freeVM() {
 //> Strings call-free-objects
   freeObjects();
 //< Strings call-free-objects
-  FREE_ARRAY(Value, vm.stack, vm.stackCapacity);
-
-  vm.stack = NULL;
-  vm.stackCapacity = 0;
 }
 //> push
 void push(Value value) {
-  if (vm.stackCapacity < vm.stackCount + 1) {
-    int oldCapacity = vm.stackCapacity;
-    vm.stackCapacity = GROW_CAPACITY(oldCapacity);
-
-    vm.stack = GROW_ARRAY(Value, vm.stack, oldCapacity, vm.stackCapacity);
-  }
-
-  vm.stack[vm.stackCount] = value;
-  vm.stackCount++;
+  *vm.stackTop = value;
+  vm.stackTop++;
 }
 //< push
 //> pop
 Value pop() {
-  vm.stackCount--;
-  return vm.stack[vm.stackCount];
+  vm.stackTop--;
+  return *vm.stackTop;
 }
 //< pop
 //> Types of Values peek
 static Value peek(int distance) {
-  return vm.stack[vm.stackCount - 1 - distance];
+  return vm.stackTop[-1 - distance];
 }
 //< Types of Values peek
 /* Calls and Functions call < Closures call-signature
@@ -211,7 +201,7 @@ static bool call(ObjClosure* closure, int argCount) {
   frame->closure = closure;
   frame->ip = closure->function->chunk.code;
 //< Closures call-init-closure
-  frame->slots = vm.stack + vm.stackCount - argCount - 1;
+  frame->slots = vm.stackTop - argCount - 1;
   return true;
 }
 //< Calls and Functions call
@@ -223,7 +213,7 @@ static bool callValue(Value callee, int argCount) {
       case OBJ_BOUND_METHOD: {
         ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
 //> store-receiver
-        vm.stack[vm.stackCount - argCount - 1] = bound->receiver;
+        vm.stackTop[-argCount - 1] = bound->receiver;
 //< store-receiver
         return call(bound->method, argCount);
       }
@@ -231,7 +221,7 @@ static bool callValue(Value callee, int argCount) {
 //> Classes and Instances call-class
       case OBJ_CLASS: {
         ObjClass* klass = AS_CLASS(callee);
-        vm.stack[vm.stackCount - argCount - 1] = OBJ_VAL(newInstance(klass));
+        vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
 //> Methods and Initializers call-init
         Value initializer;
         if (tableGet(&klass->methods, vm.initString,
@@ -259,8 +249,8 @@ static bool callValue(Value callee, int argCount) {
 //> call-native
       case OBJ_NATIVE: {
         NativeFn native = AS_NATIVE(callee);
-        Value result = native(argCount, vm.stack + vm.stackCount - argCount);
-        vm.stackCount -= argCount + 1;
+        Value result = native(argCount, vm.stackTop - argCount);
+        vm.stackTop -= argCount + 1;
         push(result);
         return true;
       }
@@ -300,7 +290,7 @@ static bool invoke(ObjString* name, int argCount) {
 
   Value value;
   if (tableGet(&instance->fields, name, &value)) {
-    vm.stack[vm.stackCount - argCount - 1] = value;
+    vm.stackTop[-argCount - 1] = value;
     return callValue(value, argCount);
   }
 
@@ -461,9 +451,9 @@ static InterpretResult run() {
 #ifdef DEBUG_TRACE_EXECUTION
 //> trace-stack
     printf("          ");
-    for (int slot = 0; slot < vm.stackCount; slot++) {
+    for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
       printf("[ ");
-      printValue(vm.stack[slot]);
+      printValue(*slot);
       printf(" ]");
     }
     printf("\n");
@@ -683,7 +673,7 @@ static InterpretResult run() {
 //< Types of Values op-arithmetic
 //> Types of Values op-not
       case OP_NOT:
-        vm.stack[vm.stackCount - 1] = BOOL_VAL(isFalsey(vm.stack[vm.stackCount - 1]));
+        push(BOOL_VAL(isFalsey(pop())));
         break;
 //< Types of Values op-not
 //> Types of Values op-negate
@@ -692,8 +682,7 @@ static InterpretResult run() {
           runtimeError("Operand must be a number.");
           return INTERPRET_RUNTIME_ERROR;
         }
-
-        vm.stack[vm.stackCount - 1] = NUMBER_VAL(-AS_NUMBER(vm.stack[vm.stackCount - 1]));
+        push(NUMBER_VAL(-AS_NUMBER(pop())));
         break;
 //< Types of Values op-negate
 //> Global Variables interpret-print
@@ -796,7 +785,7 @@ static InterpretResult run() {
 //< Closures interpret-closure
 //> Closures interpret-close-upvalue
       case OP_CLOSE_UPVALUE:
-        closeUpvalues(vm.stack + vm.stackCount - 1);
+        closeUpvalues(vm.stackTop - 1);
         pop();
         break;
 //< Closures interpret-close-upvalue
@@ -822,7 +811,7 @@ static InterpretResult run() {
           return INTERPRET_OK;
         }
 
-        vm.stackCount = (int)(frame->slots - vm.stack);
+        vm.stackTop = frame->slots;
         push(result);
         frame = &vm.frames[vm.frameCount - 1];
         break;
