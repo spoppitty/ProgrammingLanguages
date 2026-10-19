@@ -98,11 +98,10 @@ static inline Value numToValue(double num) {
 //> Types of Values value-type
 typedef enum {
   VAL_BOOL,
-  VAL_NIL, // [user-types]
+  VAL_NIL, 
   VAL_NUMBER,
-//> Strings val-obj
-  VAL_OBJ
-//< Strings val-obj
+  VAL_OBJ,
+  VAL_EMPTY // added
 } ValueType;
 
 //< Types of Values value-type
@@ -129,6 +128,7 @@ typedef struct {
 //> Strings is-obj
 #define IS_OBJ(value)     ((value).type == VAL_OBJ)
 //< Strings is-obj
+#define IS_EMPTY(value)   ((value).type == VAL_EMPTY)
 //< Types of Values is-macros
 //> Types of Values as-macros
 
@@ -146,6 +146,7 @@ typedef struct {
 //> Strings obj-val
 #define OBJ_VAL(object)   ((Value){VAL_OBJ, {.obj = (Obj*)object}})
 //< Strings obj-val
+#define EMPTY_VAL         ((Value){VAL_EMPTY, {.number = 0}})
 //< Types of Values value-macros
 //> Optimization end-if-nan-boxing
 
@@ -171,5 +172,6 @@ void freeValueArray(ValueArray* array);
 //> print-value-h
 void printValue(Value value);
 //< print-value-h
+uint32_t hashValue(Value value);
 
 #endif

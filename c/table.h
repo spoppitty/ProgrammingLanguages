@@ -7,9 +7,10 @@
 //> entry
 
 typedef struct {
-  ObjString* key;
+  Value key; // was ObjString* key
   Value value;
 } Entry;
+
 //< entry
 
 typedef struct {
@@ -24,13 +25,9 @@ void initTable(Table* table);
 void freeTable(Table* table);
 //< free-table-h
 //> table-get-h
-bool tableGet(Table* table, ObjString* key, Value* value);
-//< table-get-h
-//> table-set-h
-bool tableSet(Table* table, ObjString* key, Value value);
-//< table-set-h
-//> table-delete-h
-bool tableDelete(Table* table, ObjString* key);
+bool tableGet(Table* table, Value key, Value* value);
+bool tableSet(Table* table, Value key, Value value);
+bool tableDelete(Table* table, Value key);
 //< table-delete-h
 //> table-add-all-h
 void tableAddAll(Table* from, Table* to);

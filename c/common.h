@@ -8,7 +8,7 @@
 //> A Virtual Machine define-debug-trace
 
 //> Optimization define-nan-boxing
-#define NAN_BOXING
+// #define NAN_BOXING
 //< Optimization define-nan-boxing
 //> Compiling Expressions define-debug-print-code
 #define DEBUG_PRINT_CODE
