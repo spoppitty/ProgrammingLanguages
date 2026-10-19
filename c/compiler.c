@@ -705,11 +705,13 @@ static void string() {
 */
 //> Strings parse-string
 //> Global Variables string
+
 static void string(bool canAssign) {
-//< Global Variables string
-  emitConstant(OBJ_VAL(copyString(parser.previous.start + 1,
-                                  parser.previous.length - 2)));
+  emitConstant(OBJ_VAL(makeString(false,
+     parser.previous.start + 1,
+      parser.previous.length - 2)));
 }
+
 //< Strings parse-string
 /* Global Variables read-named-variable < Global Variables named-variable-signature
 static void namedVariable(Token name) {
