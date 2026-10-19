@@ -107,7 +107,31 @@ ObjNative* newNative(NativeFn function) {
 /* Strings allocate-string < Hash Tables allocate-string
 static ObjString* allocateString(char* chars, int length) {
 */
+//> allocate-string
+//> Hash Tables allocate-string
+static ObjString* allocateString(char* chars, int length,
+                                 uint32_t hash) {
+//< Hash Tables allocate-string
+  ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
+  string->length = length;
+  string->chars = chars;
+//> Hash Tables allocate-store-hash
+  string->hash = hash;
+//< Hash Tables allocate-store-hash
+//> Hash Tables allocate-store-string
+//> Garbage Collection push-string
 
+  push(OBJ_VAL(string));
+//< Garbage Collection push-string
+  tableSet(&vm.strings, string, NIL_VAL);
+//> Garbage Collection pop-string
+  pop();
+
+//< Garbage Collection pop-string
+//< Hash Tables allocate-store-string
+  return string;
+}
+//< allocate-string
 //> Hash Tables hash-string
 static uint32_t hashString(const char* key, int length) {
   uint32_t hash = 2166136261u;
@@ -118,36 +142,45 @@ static uint32_t hashString(const char* key, int length) {
   return hash;
 }
 //< Hash Tables hash-string
-//> make-string
-ObjString* makeString(bool ownsChars, const char* chars, int length) {
+//> take-string
+ObjString* takeString(char* chars, int length) {
+/* Strings take-string < Hash Tables take-string-hash
+  return allocateString(chars, length);
+*/
+//> Hash Tables take-string-hash
   uint32_t hash = hashString(chars, length);
-  ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
-
+//> take-string-intern
+  ObjString* interned = tableFindString(&vm.strings, chars, length,
+                                        hash);
   if (interned != NULL) {
-    if (ownsChars) {
-      FREE_ARRAY(char, (char*)chars, length + 1);
-    }
+    FREE_ARRAY(char, chars, length + 1);
     return interned;
   }
 
-  ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
-  string->ownsChars = ownsChars;
-  string->length = length;
-  string->chars = chars;
-  string->hash = hash;
-
-  push(OBJ_VAL(string));
-  tableSet(&vm.strings, string, NIL_VAL);
-  pop();
-  return string;
+//< take-string-intern
+  return allocateString(chars, length, hash);
+//< Hash Tables take-string-hash
 }
-//< make-string
+//< take-string
 ObjString* copyString(const char* chars, int length) {
+//> Hash Tables copy-string-hash
+  uint32_t hash = hashString(chars, length);
+//> copy-string-intern
+  ObjString* interned = tableFindString(&vm.strings, chars, length,
+                                        hash);
+  if (interned != NULL) return interned;
+
+//< copy-string-intern
+//< Hash Tables copy-string-hash
   char* heapChars = ALLOCATE(char, length + 1);
   memcpy(heapChars, chars, length);
   heapChars[length] = '\0';
-
-  return makeString(true, heapChars, length);
+/* Strings object-c < Hash Tables copy-string-allocate
+  return allocateString(heapChars, length);
+*/
+//> Hash Tables copy-string-allocate
+  return allocateString(heapChars, length, hash);
+//< Hash Tables copy-string-allocate
 }
 //> Closures new-upvalue
 ObjUpvalue* newUpvalue(Value* slot) {
@@ -208,7 +241,7 @@ void printObject(Value value) {
       break;
 //< Calls and Functions print-native
     case OBJ_STRING:
-      printf("%.*s", AS_STRING(value)->length, AS_CSTRING(value));
+      printf("%s", AS_CSTRING(value));
       break;
 //> Closures print-upvalue
     case OBJ_UPVALUE:

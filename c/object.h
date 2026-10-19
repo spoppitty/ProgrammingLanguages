@@ -122,10 +122,11 @@ typedef struct {
 
 struct ObjString {
   Obj obj;
-  bool ownsChars; // added
   int length;
-  const char* chars; // was char* chars
+  char* chars;
+//> Hash Tables obj-string-hash
   uint32_t hash;
+//< Hash Tables obj-string-hash
 };
 //< obj-string
 //> Closures obj-upvalue
@@ -197,7 +198,7 @@ ObjInstance* newInstance(ObjClass* klass);
 ObjNative* newNative(NativeFn function);
 //< Calls and Functions new-native-h
 //> take-string-h
-ObjString* makeString(bool ownsChars, const char* chars, int length);
+ObjString* takeString(char* chars, int length);
 //< take-string-h
 //> copy-string-h
 ObjString* copyString(const char* chars, int length);

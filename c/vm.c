@@ -383,7 +383,7 @@ static void concatenate() {
   memcpy(chars + a->length, b->chars, b->length);
   chars[length] = '\0';
 
-  ObjString* result = makeString(true, chars, length);
+  ObjString* result = takeString(chars, length);
 //> Garbage Collection concatenate-pop
   pop();
   pop();
