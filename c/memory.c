@@ -217,7 +217,9 @@ static void freeObject(Obj* object) {
 //< Calls and Functions free-native
     case OBJ_STRING: {
       ObjString* string = (ObjString*)object;
-      reallocate(object, sizeof(ObjString) + string->length + 1, 0);
+      reallocate(object, 
+        sizeof(ObjString) + string->length + 1,
+         0);
       break;
     }
 //> Closures free-upvalue
