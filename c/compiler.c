@@ -14,6 +14,7 @@
 //< Garbage Collection compiler-include-memory
 #include "scanner.h"
 //> Compiling Expressions include-debug
+#include "table.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -112,6 +113,7 @@ typedef struct Compiler {
   Upvalue upvalues[UINT8_COUNT];
 //< Closures upvalues-array
   int scopeDepth;
+  Table stringConstants;
 } Compiler;
 //< Local Variables compiler-struct
 //> Methods and Initializers class-compiler-struct
@@ -304,6 +306,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 //< Calls and Functions init-compiler
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
+  initTable(&compiler->stringConstants);
 //> Calls and Functions init-function
   compiler->function = newFunction();
 //< Calls and Functions init-function
@@ -363,7 +366,7 @@ static ObjFunction* endCompiler() {
 #endif
 //< dump-chunk
 //> Calls and Functions return-function
-
+  freeTable(&current->stringConstants);
 //> restore-enclosing
   current = current->enclosing;
 //< restore-enclosing
@@ -412,8 +415,22 @@ static void parsePrecedence(Precedence precedence);
 //< Compiling Expressions forward-declarations
 //> Global Variables identifier-constant
 static uint8_t identifierConstant(Token* name) {
-  return makeConstant(OBJ_VAL(copyString(name->start,
-                                         name->length)));
+  ObjString* string = copyString(name->start, name->length);
+  Value indexValue;
+
+  // Reuse the existing constant if this identifier was already added.
+  if (tableGet(&current->stringConstants, string, &indexValue)) {
+    return (uint8_t)AS_NUMBER(indexValue);
+  }
+
+  // Otherwise, add a new constant.
+  uint8_t index = makeConstant(OBJ_VAL(string));
+
+  tableSet(&current->stringConstants,
+           string,
+           NUMBER_VAL((double)index));
+
+  return index;
 }
 //< Global Variables identifier-constant
 //> Local Variables identifiers-equal
