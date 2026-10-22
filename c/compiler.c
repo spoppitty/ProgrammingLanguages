@@ -426,13 +426,24 @@ static uint8_t identifierConstant(Token* name) {
   // Otherwise, add a new constant.
   uint8_t index = makeConstant(OBJ_VAL(string));
 
-  tableSet(&current->stringConstants,
-           string,
-           NUMBER_VAL((double)index));
+  tableSet(&current->stringConstants, string, NUMBER_VAL((double)index));
 
   return index;
 }
 //< Global Variables identifier-constant
+static uint8_t globalIdentifier(Token* name) {
+  ObjString* string = copyString(name->start, name->length);
+  Value indexValue;
+
+  if (tableGet(&vm.globalNames, string, &indexValue)) {
+    return (uint8_t)AS_NUMBER(indexValue);
+  }
+
+  uint8_t index = (uint8_t)vm.globalValues.count;
+  writeValueArray(&vm.globalValues, UNDEFINED_VAL);
+  tableSet(&vm.globalNames, string, NUMBER_VAL((double)index));
+  return index;
+}
 //> Local Variables identifiers-equal
 static bool identifiersEqual(Token* a, Token* b) {
   if (a->length != b->length) return false;
@@ -556,7 +567,7 @@ static uint8_t parseVariable(const char* errorMessage) {
   if (current->scopeDepth > 0) return 0;
 
 //< Local Variables parse-local
-  return identifierConstant(&parser.previous);
+  return globalIdentifier(&parser.previous);
 }
 //< Global Variables parse-variable
 //> Local Variables mark-initialized
@@ -750,7 +761,7 @@ static void namedVariable(Token name, bool canAssign) {
     setOp = OP_SET_UPVALUE;
 //< Closures named-variable-upvalue
   } else {
-    arg = identifierConstant(&name);
+    arg = globalIdentifier(&name);
     getOp = OP_GET_GLOBAL;
     setOp = OP_SET_GLOBAL;
   }
@@ -1132,6 +1143,14 @@ static void classDeclaration() {
 //< Methods and Initializers class-name
   uint8_t nameConstant = identifierConstant(&parser.previous);
   declareVariable();
+
+  uint8_t global = 0;
+  if (current->scopeDepth == 0) {
+    global = globalIdentifier(&className);
+  }
+
+emitBytes(OP_CLASS, nameConstant);
+defineVariable(global);
 
   emitBytes(OP_CLASS, nameConstant);
   defineVariable(nameConstant);

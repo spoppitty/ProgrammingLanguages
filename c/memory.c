@@ -250,7 +250,10 @@ static void markRoots() {
 //< mark-open-upvalues
 //> mark-globals
 
-  markTable(&vm.globals);
+  markTable(&vm.globalNames);
+  for (int i = 0; i < vm.globalValues.count; i++) {
+    markValue(vm.globalValues.values[i]);
+  }
 //< mark-globals
 //> call-mark-compiler-roots
   markCompilerRoots();

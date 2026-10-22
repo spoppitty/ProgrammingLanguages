@@ -17,6 +17,9 @@ typedef struct ObjString ObjString;
 //< Strings forward-declare-obj
 //> Optimization nan-boxing
 #ifdef NAN_BOXING
+#define TAG_UNDEFINED 4
+#define IS_UNDEFINED(value) ((value) == UNDEFINED_VAL)
+#define UNDEFINED_VAL ((Value)(uint64_t)(QNAN | TAG_UNDEFINED))
 //> qnan
 
 //> sign-bit
@@ -103,6 +106,7 @@ typedef enum {
 //> Strings val-obj
   VAL_OBJ
 //< Strings val-obj
+  VAL_UNDEFINED,
 } ValueType;
 
 //< Types of Values value-type
@@ -123,6 +127,8 @@ typedef struct {
 //< Types of Values value
 //> Types of Values is-macros
 
+#define IS_UNDEFINED(value) ((value).type == VAL_UNDEFINED)
+#define UNDEFINED_VAL ((Value){VAL_UNDEFINED, {.number = 0}})
 #define IS_BOOL(value)    ((value).type == VAL_BOOL)
 #define IS_NIL(value)     ((value).type == VAL_NIL)
 #define IS_NUMBER(value)  ((value).type == VAL_NUMBER)

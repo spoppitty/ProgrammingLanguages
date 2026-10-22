@@ -89,7 +89,12 @@ static void runtimeError(const char* format, ...) {
 static void defineNative(const char* name, NativeFn function) {
   push(OBJ_VAL(copyString(name, (int)strlen(name))));
   push(OBJ_VAL(newNative(function)));
-  tableSet(&vm.globals, AS_STRING(vm.stack[0]), vm.stack[1]);
+
+  uint8_t index = (uint8_t)vm.globalValues.count;
+  writeValueArray(&vm.globalValues, UNDEFINED_VAL);
+  tableSet(&vm.globalNames, AS_STRING(vm.stack[0]), NUMBER_VAL((double)index));
+  vm.globalValues.values[index] = vm.stack[1];
+
   pop();
   pop();
 }
@@ -113,8 +118,8 @@ void initVM() {
   vm.grayStack = NULL;
 //< Garbage Collection init-gray-stack
 //> Global Variables init-globals
-
-  initTable(&vm.globals);
+  initTable(&vm.globalNames);
+  initValueArray(&vm.globalValues);
 //< Global Variables init-globals
 //> Hash Tables init-strings
   initTable(&vm.strings);
@@ -134,7 +139,8 @@ void initVM() {
 
 void freeVM() {
 //> Global Variables free-globals
-  freeTable(&vm.globals);
+  freeTable(&vm.globalNames);
+  freeValueArray(&vm.globalValues);
 //< Global Variables free-globals
 //> Hash Tables free-strings
   freeTable(&vm.strings);
@@ -522,32 +528,33 @@ static InterpretResult run() {
 //< Local Variables interpret-set-local
 //> Global Variables interpret-get-global
       case OP_GET_GLOBAL: {
-        ObjString* name = READ_STRING();
-        Value value;
-        if (!tableGet(&vm.globals, name, &value)) {
-          runtimeError("Undefined variable '%s'.", name->chars);
+        Value value = vm.globalValues.values[READ_BYTE()];
+
+        if (IS_UNDEFINED(value)) {
+          runtimeError("Undefined variable.");
           return INTERPRET_RUNTIME_ERROR;
         }
+
         push(value);
         break;
       }
 //< Global Variables interpret-get-global
 //> Global Variables interpret-define-global
       case OP_DEFINE_GLOBAL: {
-        ObjString* name = READ_STRING();
-        tableSet(&vm.globals, name, peek(0));
-        pop();
+        vm.globalValues.values[READ_BYTE()] = pop();
         break;
       }
 //< Global Variables interpret-define-global
 //> Global Variables interpret-set-global
       case OP_SET_GLOBAL: {
-        ObjString* name = READ_STRING();
-        if (tableSet(&vm.globals, name, peek(0))) {
-          tableDelete(&vm.globals, name); // [delete]
-          runtimeError("Undefined variable '%s'.", name->chars);
+        uint8_t index = READ_BYTE();
+
+        if (IS_UNDEFINED(vm.globalValues.values[index])) {
+          runtimeError("Undefined variable.");
           return INTERPRET_RUNTIME_ERROR;
         }
+
+        vm.globalValues.values[index] = peek(0);
         break;
       }
 //< Global Variables interpret-set-global

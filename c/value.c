@@ -46,6 +46,8 @@ void printValue(Value value) {
     printf("%g", AS_NUMBER(value));
   } else if (IS_OBJ(value)) {
     printObject(value);
+  } else if (IS_UNDEFINED(value)) {
+    printf("undefined");
   }
 #else
 //< Optimization print-value
@@ -64,6 +66,9 @@ void printValue(Value value) {
     case VAL_NUMBER: printf("%g", AS_NUMBER(value)); break;
 //> Strings call-print-object
     case VAL_OBJ: printObject(value); break;
+    case VAL_UNDEFINED:
+      printf("undefined");
+      break;
 //< Strings call-print-object
   }
 //< Types of Values print-value
