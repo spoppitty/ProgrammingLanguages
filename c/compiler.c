@@ -113,7 +113,6 @@ typedef struct Compiler {
   Upvalue upvalues[UINT8_COUNT];
 //< Closures upvalues-array
   int scopeDepth;
-  Table stringConstants;
 } Compiler;
 //< Local Variables compiler-struct
 //> Methods and Initializers class-compiler-struct
@@ -130,6 +129,7 @@ Parser parser;
 //< Compiling Expressions parser
 //> Local Variables current-compiler
 Compiler* current = NULL;
+Table stringConstants;
 //< Local Variables current-compiler
 //> Methods and Initializers current-class
 ClassCompiler* currentClass = NULL;
@@ -306,7 +306,6 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 //< Calls and Functions init-compiler
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
-  initTable(&compiler->stringConstants);
 //> Calls and Functions init-function
   compiler->function = newFunction();
 //< Calls and Functions init-function
@@ -366,7 +365,6 @@ static ObjFunction* endCompiler() {
 #endif
 //< dump-chunk
 //> Calls and Functions return-function
-  freeTable(&current->stringConstants);
 //> restore-enclosing
   current = current->enclosing;
 //< restore-enclosing
@@ -419,14 +417,14 @@ static uint8_t identifierConstant(Token* name) {
   Value indexValue;
 
   // Reuse the existing constant if this identifier was already added.
-  if (tableGet(&current->stringConstants, string, &indexValue)) {
+  if (tableGet(&stringConstants, string, &indexValue)) {
     return (uint8_t)AS_NUMBER(indexValue);
   }
 
   // Otherwise, add a new constant.
   uint8_t index = makeConstant(OBJ_VAL(string));
 
-  tableSet(&current->stringConstants, string, NUMBER_VAL((double)index));
+  tableSet(&stringConstants, string, NUMBER_VAL((double)index));
 
   return index;
 }
@@ -1523,6 +1521,7 @@ ObjFunction* compile(const char* source) {
 
   parser.hadError = false;
   parser.panicMode = false;
+  initTable(&stringConstants);
 
 //< init-parser-error
   advance();
@@ -1546,6 +1545,7 @@ ObjFunction* compile(const char* source) {
 */
 //> Calls and Functions call-end-compiler
   ObjFunction* function = endCompiler();
+  freeTable(&stringConstants);
   return parser.hadError ? NULL : function;
 //< Calls and Functions call-end-compiler
 }
