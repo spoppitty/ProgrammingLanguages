@@ -20,6 +20,7 @@ typedef enum {
 //> Global Variables pop-op
   OP_POP,
 //< Global Variables pop-op
+  OP_DUP,
 //> Local Variables get-local-op
   OP_GET_LOCAL,
 //< Local Variables get-local-op

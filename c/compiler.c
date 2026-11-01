@@ -406,6 +406,7 @@ static void expression();
 static void statement();
 static void declaration();
 //< Global Variables forward-declarations
+static void switchStatement();
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
@@ -1304,6 +1305,85 @@ static void ifStatement() {
 //< patch-else
 }
 //< Jumping Back and Forth if-statement
+#define MAX_CASES 256
+
+static void switchStatement() {
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'switch'.");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after value.");
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before switch cases.");
+
+  // 0 = before cases, 1 = inside a case, 2 = inside default.
+  int state = 0;
+
+  int caseEnds[MAX_CASES];
+  int caseCount = 0;
+
+  int previousCaseSkip = -1;
+
+  while (!match(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+    if (match(TOKEN_CASE) || match(TOKEN_DEFAULT)) {
+      TokenType caseType = parser.previous.type;
+
+      if (state == 2) {
+        error("Can't have another case or default after the default case.");
+      }
+
+      if (state == 1) {
+        // The previous case matched, so skip the remaining cases.
+        caseEnds[caseCount++] = emitJump(OP_JUMP);
+
+        // The previous case did not match, so continue here.
+        patchJump(previousCaseSkip);
+        emitByte(OP_POP);
+      }
+
+      if (caseType == TOKEN_CASE) {
+        state = 1;
+
+        // Duplicate the switch value before comparing.
+        emitByte(OP_DUP);
+
+        expression();
+
+        consume(TOKEN_COLON, "Expect ':' after case value.");
+
+        emitByte(OP_EQUAL);
+
+        previousCaseSkip = emitJump(OP_JUMP_IF_FALSE);
+
+        // Remove the true comparison result.
+        emitByte(OP_POP);
+      } else {
+        state = 2;
+
+        consume(TOKEN_COLON, "Expect ':' after default.");
+
+        previousCaseSkip = -1;
+      }
+    } else {
+      if (state == 0) {
+        error("Can't have statements before any case.");
+      }
+
+      statement();
+    }
+  }
+
+  // If the final case did not match, remove its false result.
+  if (state == 1) {
+    patchJump(previousCaseSkip);
+    emitByte(OP_POP);
+  }
+
+  // All completed cases jump here after executing.
+  for (int i = 0; i < caseCount; i++) {
+    patchJump(caseEnds[i]);
+  }
+
+  // Remove the original switch value.
+  emitByte(OP_POP);
+}
 //> Global Variables print-statement
 static void printStatement() {
   expression();
@@ -1368,6 +1448,7 @@ static void synchronize() {
       case TOKEN_IF:
       case TOKEN_WHILE:
       case TOKEN_PRINT:
+      case TOKEN_SWITCH:
       case TOKEN_RETURN:
         return;
 
@@ -1423,6 +1504,8 @@ static void statement() {
   } else if (match(TOKEN_IF)) {
     ifStatement();
 //< Jumping Back and Forth parse-if
+  } else if (match(TOKEN_SWITCH)) {
+    switchStatement();
 //> Calls and Functions match-return
   } else if (match(TOKEN_RETURN)) {
     returnStatement();
