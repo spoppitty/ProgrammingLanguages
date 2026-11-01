@@ -180,6 +180,7 @@ static TokenType identifierType() {
       }
       break;
 //< keyword-t
+    case 'u': return checkKeyword(1, 5, "nless", TOKEN_UNLESS);
     case 'v': return checkKeyword(1, 2, "ar", TOKEN_VAR);
     case 'w': return checkKeyword(1, 4, "hile", TOKEN_WHILE);
   }

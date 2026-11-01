@@ -410,6 +410,7 @@ static void declaration();
 //< Global Variables forward-declarations
 static void switchStatement();
 static void continueStatement();
+static void unlessStatement();
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
@@ -1484,6 +1485,30 @@ static void continueStatement() {
   // Jump to the appropriate loop location.
   emitLoop(innermostLoopStart);
 }
+
+static void unlessStatement() {
+  consume(TOKEN_LEFT_PAREN,
+          "Expect '(' after 'unless'.");
+
+  expression();
+
+  consume(TOKEN_RIGHT_PAREN,
+          "Expect ')' after condition.");
+
+  // True condition skips the body.
+  int bodyJump = emitJump(OP_JUMP_IF_FALSE);
+
+  emitByte(OP_POP);
+  int endJump = emitJump(OP_JUMP);
+
+  // False condition executes the body.
+  patchJump(bodyJump);
+  emitByte(OP_POP);
+
+  statement();
+
+  patchJump(endJump);
+}
 //> Global Variables synchronize
 static void synchronize() {
   parser.panicMode = false;
@@ -1559,6 +1584,8 @@ static void statement() {
     switchStatement();
   } else if (match(TOKEN_CONTINUE)) {
     continueStatement();
+  } else if (match(TOKEN_UNLESS)) {
+    unlessStatement();
 //> Calls and Functions match-return
   } else if (match(TOKEN_RETURN)) {
     returnStatement();
