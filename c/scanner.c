@@ -129,7 +129,14 @@ static TokenType identifierType() {
 //> keywords
   switch (scanner.start[0]) {
     case 'a': return checkKeyword(1, 2, "nd", TOKEN_AND);
-    case 'c': return checkKeyword(1, 4, "lass", TOKEN_CLASS);
+    case 'c':
+      if (scanner.current - scanner.start > 1) {
+        switch (scanner.start[1]) {
+          case 'l': return checkKeyword(1, 4, "lass", TOKEN_CLASS);
+          case 'o': return checkKeyword(1, 4, "onst", TOKEN_CONST);
+        }
+      }
+      break;
     case 'e': return checkKeyword(1, 3, "lse", TOKEN_ELSE);
 //> keyword-f
     case 'f':
