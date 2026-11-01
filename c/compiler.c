@@ -77,7 +77,7 @@ typedef struct {
 //< Local Variables local-struct
 //> Closures upvalue-struct
 typedef struct {
-  uint8_t index;
+  uint16_t index;
   bool isLocal;
 } Upvalue;
 //< Closures upvalue-struct
@@ -107,7 +107,8 @@ typedef struct Compiler {
   FunctionType type;
 
 //< Calls and Functions function-fields
-  Local locals[UINT8_COUNT];
+  Local* locals;
+  int localCapacity;
   int localCount;
 //> Closures upvalues-array
   Upvalue upvalues[UINT8_COUNT];
@@ -236,6 +237,12 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
   emitByte(byte1);
   emitByte(byte2);
 }
+
+static void emitShort(uint8_t instruction, uint16_t operand) {
+  emitByte(instruction);
+  emitByte((operand >> 8) & 0xff);
+  emitByte(operand & 0xff);
+}
 //< Compiling Expressions emit-bytes
 //> Jumping Back and Forth emit-loop
 static void emitLoop(int loopStart) {
@@ -263,7 +270,7 @@ static void emitReturn() {
 */
 //> Methods and Initializers return-this
   if (current->type == TYPE_INITIALIZER) {
-    emitBytes(OP_GET_LOCAL, 0);
+    emitShort(OP_GET_LOCAL, 0);
   } else {
     emitByte(OP_NIL);
   }
@@ -314,6 +321,8 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->type = type;
 //< Calls and Functions init-compiler
   compiler->localCount = 0;
+  compiler->localCapacity = 0;
+  compiler->locals = NULL;
   compiler->scopeDepth = 0;
 //> Calls and Functions init-function
   compiler->function = newFunction();
@@ -326,6 +335,13 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   }
 //< Calls and Functions init-function-name
 //> Calls and Functions init-function-slot
+
+  if (current->localCount == current->localCapacity) {
+    current->localCapacity = GROW_CAPACITY(current->localCapacity);
+    current->locals = realloc(current->locals,
+                              sizeof(Local) * current->localCapacity);
+    if (current->locals == NULL) exit(1);
+  }
 
   Local* local = &current->locals[current->localCount++];
   local->depth = 0;
@@ -377,6 +393,8 @@ static ObjFunction* endCompiler() {
 //> Calls and Functions return-function
 
 //> restore-enclosing
+  free(current->locals);
+  current->locals = NULL;
   current = current->enclosing;
 //< restore-enclosing
   return function;
@@ -469,7 +487,7 @@ static int resolveLocal(Compiler* compiler, Token* name) {
 }
 //< Local Variables resolve-local
 //> Closures add-upvalue
-static int addUpvalue(Compiler* compiler, uint8_t index,
+static int addUpvalue(Compiler* compiler, uint16_t index,
                       bool isLocal) {
   int upvalueCount = compiler->function->upvalueCount;
 //> existing-upvalue
@@ -505,13 +523,13 @@ static int resolveUpvalue(Compiler* compiler, Token* name,
 //> mark-local-captured
     compiler->enclosing->locals[local].isCaptured = true;
 //< mark-local-captured
-    return addUpvalue(compiler, (uint8_t)local, true);
+    return addUpvalue(compiler, (uint16_t)local, true);
   }
 
 //> resolve-upvalue-recurse
   int upvalue = resolveUpvalue(compiler->enclosing, name, isConst);
   if (upvalue != -1) {
-    return addUpvalue(compiler, (uint8_t)upvalue, false);
+    return addUpvalue(compiler, (uint16_t)upvalue, false);
   }
   
 //< resolve-upvalue-recurse
@@ -520,13 +538,18 @@ static int resolveUpvalue(Compiler* compiler, Token* name,
 //< Closures resolve-upvalue
 //> Local Variables add-local
 static void addLocal(Token name, bool isConst) {
-//> too-many-locals
-  if (current->localCount == UINT8_COUNT) {
+  if (current->localCount == UINT16_COUNT) {
     error("Too many local variables in function.");
     return;
   }
 
-//< too-many-locals
+  if (current->localCount == current->localCapacity) {
+    current->localCapacity = GROW_CAPACITY(current->localCapacity);
+    current->locals = realloc(current->locals,
+                              sizeof(Local) * current->localCapacity);
+    if (current->locals == NULL) exit(1);
+  }
+
   Local* local = &current->locals[current->localCount++];
   local->name = name;
   local->isConst = isConst;
@@ -791,14 +814,22 @@ static void namedVariable(Token name, bool canAssign) {
     if (isConst) {
       error("Can't assign to a const variable.");
     } else {
-      emitBytes(setOp, (uint8_t)arg);
+      if (setOp == OP_SET_LOCAL) {
+        emitShort(setOp, (uint16_t)arg);
+      } else {
+        emitBytes(setOp, (uint8_t)arg);
+      }
     }
   } else {
 /* Global Variables named-variable < Local Variables emit-get
     emitBytes(OP_GET_GLOBAL, arg);
 */
 //> Local Variables emit-get
-    emitBytes(getOp, (uint8_t)arg);
+    if (getOp == OP_GET_LOCAL) {
+      emitShort(getOp, (uint16_t)arg);
+    } else {
+      emitBytes(getOp, (uint8_t)arg);
+    }
 //< Local Variables emit-get
   }
 //< named-variable
@@ -1113,7 +1144,8 @@ static void function(FunctionType type) {
 
   for (int i = 0; i < function->upvalueCount; i++) {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-    emitByte(compiler.upvalues[i].index);
+    emitByte((compiler.upvalues[i].index >> 8) & 0xff);
+    emitByte(compiler.upvalues[i].index & 0xff);
   }
 //< Closures capture-upvalues
 }

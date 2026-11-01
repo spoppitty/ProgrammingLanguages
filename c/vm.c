@@ -498,7 +498,7 @@ static InterpretResult run() {
 //< Global Variables interpret-pop
 //> Local Variables interpret-get-local
       case OP_GET_LOCAL: {
-        uint8_t slot = READ_BYTE();
+        uint16_t slot = READ_SHORT();
 /* Local Variables interpret-get-local < Calls and Functions push-local
         push(vm.stack[slot]); // [slot]
 */
@@ -510,7 +510,7 @@ static InterpretResult run() {
 //< Local Variables interpret-get-local
 //> Local Variables interpret-set-local
       case OP_SET_LOCAL: {
-        uint8_t slot = READ_BYTE();
+        uint16_t slot = READ_SHORT();
 /* Local Variables interpret-set-local < Calls and Functions set-local
         vm.stack[slot] = peek(0);
 */
@@ -771,7 +771,7 @@ static InterpretResult run() {
 //> interpret-capture-upvalues
         for (int i = 0; i < closure->upvalueCount; i++) {
           uint8_t isLocal = READ_BYTE();
-          uint8_t index = READ_BYTE();
+          uint16_t index = READ_SHORT();
           if (isLocal) {
             closure->upvalues[i] =
                 captureUpvalue(frame->slots + index);
