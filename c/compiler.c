@@ -401,12 +401,15 @@ static void endScope() {
 //< Local Variables end-scope
 //> Compiling Expressions forward-declarations
 
+static int innermostLoopStart = -1;
+static int innermostLoopScopeDepth = 0;
 static void expression();
 //> Global Variables forward-declarations
 static void statement();
 static void declaration();
 //< Global Variables forward-declarations
 static void switchStatement();
+static void continueStatement();
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
@@ -1211,14 +1214,11 @@ static void expressionStatement() {
 //< Global Variables expression-statement
 //> Jumping Back and Forth for-statement
 static void forStatement() {
-//> for-begin-scope
   beginScope();
-//< for-begin-scope
+
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
-/* Jumping Back and Forth for-statement < Jumping Back and Forth for-initializer
-  consume(TOKEN_SEMICOLON, "Expect ';'.");
-*/
-//> for-initializer
+
+  // Initializer.
   if (match(TOKEN_SEMICOLON)) {
     // No initializer.
   } else if (match(TOKEN_VAR)) {
@@ -1226,54 +1226,65 @@ static void forStatement() {
   } else {
     expressionStatement();
   }
-//< for-initializer
 
-  int loopStart = currentChunk()->count;
-/* Jumping Back and Forth for-statement < Jumping Back and Forth for-exit
-  consume(TOKEN_SEMICOLON, "Expect ';'.");
-*/
-//> for-exit
+  // Save the surrounding loop in case this is a nested loop.
+  int surroundingLoopStart = innermostLoopStart;
+  int surroundingLoopScopeDepth = innermostLoopScopeDepth;
+
+  // Initially, continue jumps to the loop condition.
+  innermostLoopStart = currentChunk()->count;
+  innermostLoopScopeDepth = current->scopeDepth;
+
   int exitJump = -1;
+
+  // Condition.
   if (!match(TOKEN_SEMICOLON)) {
     expression();
-    consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.");
 
-    // Jump out of the loop if the condition is false.
+    consume(TOKEN_SEMICOLON,
+            "Expect ';' after loop condition.");
+
     exitJump = emitJump(OP_JUMP_IF_FALSE);
-    emitByte(OP_POP); // Condition.
+    emitByte(OP_POP);
   }
 
-//< for-exit
-/* Jumping Back and Forth for-statement < Jumping Back and Forth for-increment
-  consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
-*/
-//> for-increment
+  // Increment.
   if (!match(TOKEN_RIGHT_PAREN)) {
     int bodyJump = emitJump(OP_JUMP);
+
     int incrementStart = currentChunk()->count;
+
     expression();
     emitByte(OP_POP);
-    consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
 
-    emitLoop(loopStart);
-    loopStart = incrementStart;
+    consume(TOKEN_RIGHT_PAREN,
+            "Expect ')' after for clauses.");
+
+    // After the increment, go back to the condition.
+    emitLoop(innermostLoopStart);
+
+    // A continue inside the body should go to the increment.
+    innermostLoopStart = incrementStart;
+
     patchJump(bodyJump);
   }
-//< for-increment
 
+  // Loop body.
   statement();
-  emitLoop(loopStart);
-//> exit-jump
+
+  // Normal loop completion also goes to the current loop target.
+  emitLoop(innermostLoopStart);
 
   if (exitJump != -1) {
     patchJump(exitJump);
-    emitByte(OP_POP); // Condition.
+    emitByte(OP_POP);
   }
 
-//< exit-jump
-//> for-end-scope
+  // Restore the enclosing loop information.
+  innermostLoopStart = surroundingLoopStart;
+  innermostLoopScopeDepth = surroundingLoopScopeDepth;
+
   endScope();
-//< for-end-scope
 }
 //< Jumping Back and Forth for-statement
 //> Jumping Back and Forth if-statement
@@ -1416,24 +1427,63 @@ static void returnStatement() {
 //< Calls and Functions return-statement
 //> Jumping Back and Forth while-statement
 static void whileStatement() {
-//> loop-start
   int loopStart = currentChunk()->count;
-//< loop-start
-  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+
+  consume(TOKEN_LEFT_PAREN,
+          "Expect '(' after 'while'.");
+
   expression();
-  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+  consume(TOKEN_RIGHT_PAREN,
+          "Expect ')' after condition.");
 
   int exitJump = emitJump(OP_JUMP_IF_FALSE);
   emitByte(OP_POP);
+
+  // Save an outer loop in case this is a nested loop.
+  int surroundingLoopStart = innermostLoopStart;
+  int surroundingLoopScopeDepth = innermostLoopScopeDepth;
+
+  innermostLoopStart = loopStart;
+  innermostLoopScopeDepth = current->scopeDepth;
+
   statement();
-//> loop
+
   emitLoop(loopStart);
-//< loop
 
   patchJump(exitJump);
   emitByte(OP_POP);
+
+  // Restore the outer loop.
+  innermostLoopStart = surroundingLoopStart;
+  innermostLoopScopeDepth = surroundingLoopScopeDepth;
 }
 //< Jumping Back and Forth while-statement
+static void continueStatement() {
+  consume(TOKEN_SEMICOLON,
+          "Expect ';' after 'continue'.");
+
+  if (innermostLoopStart == -1) {
+    error("Can't use 'continue' outside of a loop.");
+    return;
+  }
+
+  // Remove locals declared inside the loop body.
+  for (int i = current->localCount - 1;
+       i >= 0 &&
+       current->locals[i].depth > innermostLoopScopeDepth;
+       i--) {
+
+    if (current->locals[i].isCaptured) {
+      emitByte(OP_CLOSE_UPVALUE);
+    } else {
+      emitByte(OP_POP);
+    }
+  }
+
+  // Jump to the appropriate loop location.
+  emitLoop(innermostLoopStart);
+}
 //> Global Variables synchronize
 static void synchronize() {
   parser.panicMode = false;
@@ -1449,6 +1499,7 @@ static void synchronize() {
       case TOKEN_WHILE:
       case TOKEN_PRINT:
       case TOKEN_SWITCH:
+      case TOKEN_CONTINUE:
       case TOKEN_RETURN:
         return;
 
@@ -1506,6 +1557,8 @@ static void statement() {
 //< Jumping Back and Forth parse-if
   } else if (match(TOKEN_SWITCH)) {
     switchStatement();
+  } else if (match(TOKEN_CONTINUE)) {
+    continueStatement();
 //> Calls and Functions match-return
   } else if (match(TOKEN_RETURN)) {
     returnStatement();
