@@ -27,8 +27,10 @@
 
 VM vm; // [one]
 //> Calls and Functions clock-native
-static Value clockNative(int argCount, Value* args) {
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+static bool clockNative(int argCount, Value* args) {
+  (void)argCount;
+  args[-1] = NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+  return true;
 }
 //< Calls and Functions clock-native
 //> reset-stack
@@ -254,10 +256,16 @@ static bool callValue(Value callee, int argCount) {
                        native->arity, argCount);
           return false;
         }
-        Value result = native->function(argCount, vm.stackTop - argCount);
-        vm.stackTop -= argCount + 1;
-        push(result);
-        return true;
+        if (native->function(argCount, vm.stackTop - argCount)) {
+          // The native function placed its result in the callee's slot.
+          vm.stackTop -= argCount;
+          return true;
+        }
+
+        // A failing native function places an error string in the callee's
+        // slot, which is args[-1] from the native function's perspective.
+        runtimeError(AS_STRING(vm.stackTop[-argCount - 1])->chars);
+        return false;
       }
 //< call-native
       default:
