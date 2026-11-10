@@ -10,6 +10,7 @@
 //> Calls and Functions vm-include-time
 #include <time.h>
 //< Calls and Functions vm-include-time
+#include <math.h>
 
 //< vm-include-stdio
 #include "common.h"
@@ -33,6 +34,57 @@ static bool clockNative(int argCount, Value* args) {
   return true;
 }
 //< Calls and Functions clock-native
+
+// Native functions use args[-1] for either their result or error message.
+static bool nativeError(Value* args, const char* message) {
+  args[-1] = OBJ_VAL(copyString(message, (int)strlen(message)));
+  return false;
+}
+
+static bool sqrtNative(int argCount, Value* args) {
+  (void)argCount;
+  if (!IS_NUMBER(args[0])) {
+    return nativeError(args, "sqrt() expects a number.");
+  }
+  if (AS_NUMBER(args[0]) < 0) {
+    return nativeError(args, "sqrt() cannot use a negative number.");
+  }
+
+  args[-1] = NUMBER_VAL(sqrt(AS_NUMBER(args[0])));
+  return true;
+}
+
+static bool absNative(int argCount, Value* args) {
+  (void)argCount;
+  if (!IS_NUMBER(args[0])) {
+    return nativeError(args, "abs() expects a number.");
+  }
+
+  args[-1] = NUMBER_VAL(fabs(AS_NUMBER(args[0])));
+  return true;
+}
+
+static bool powNative(int argCount, Value* args) {
+  (void)argCount;
+  if (!IS_NUMBER(args[0]) || !IS_NUMBER(args[1])) {
+    return nativeError(args, "pow() expects two numbers.");
+  }
+
+  args[-1] = NUMBER_VAL(pow(AS_NUMBER(args[0]), AS_NUMBER(args[1])));
+  return true;
+}
+
+static bool minNative(int argCount, Value* args) {
+  (void)argCount;
+  if (!IS_NUMBER(args[0]) || !IS_NUMBER(args[1])) {
+    return nativeError(args, "min() expects two numbers.");
+  }
+
+  double first = AS_NUMBER(args[0]);
+  double second = AS_NUMBER(args[1]);
+  args[-1] = NUMBER_VAL(first < second ? first : second);
+  return true;
+}
 //> reset-stack
 static void resetStack() {
   vm.stackTop = vm.stack;
@@ -131,6 +183,10 @@ void initVM() {
 //> Calls and Functions define-native-clock
 
   defineNative("clock", clockNative, 0);
+  defineNative("sqrt", sqrtNative, 1);
+  defineNative("abs", absNative, 1);
+  defineNative("pow", powNative, 2);
+  defineNative("min", minNative, 2);
 //< Calls and Functions define-native-clock
 }
 
