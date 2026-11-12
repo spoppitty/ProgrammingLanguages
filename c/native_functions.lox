@@ -1,10 +1,5 @@
-// Demonstrates the additional native functions.
-print sqrt(81);       // 9
-print abs(-12.5);     // 12.5
-print pow(2, 8);      // 256
-print min(14, 6);     // 6
-
-// Native functions can be combined with regular Lox code.
-var radius = 5;
-var area = 3.14159 * pow(radius, 2);
-print area;
+// native functions
+print sqrt(100);       // 10
+print abs(-10);     // 10
+print pow(2, 6);      // 64
+print min(10, 8);     // 8
