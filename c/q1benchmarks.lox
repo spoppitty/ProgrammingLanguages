@@ -1,0 +1,45 @@
+var iterations = 200000;
+var result = 0;
+var i = 0;
+var start = clock();
+
+// no closures
+for (i = 0; i < iterations; i = i + 1) {
+  fun increment(value) {
+    return value + 1;
+  }
+
+  result = increment(i);
+}
+
+print "non-capturing result:";
+print result;
+print "non-capturing seconds:";
+print clock() - start;
+
+// closures
+fun makeCounter(startingValue) {
+  var value = startingValue;
+
+  fun next() {
+    value = value + 1;
+    return value;
+  }
+
+  return next;
+}
+
+var counter = makeCounter(0);
+result = 0;
+i = 0;
+start = clock();
+
+while (i < iterations) {
+  result = counter();
+  i = i + 1;
+}
+
+print "capturing result:";
+print result;
+print "capturing seconds:";
+print clock() - start;
