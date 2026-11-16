@@ -108,7 +108,7 @@ static void blackenObject(Obj* object) {
     case OBJ_BOUND_METHOD: {
       ObjBoundMethod* bound = (ObjBoundMethod*)object;
       markValue(bound->receiver);
-      markObject((Obj*)bound->method);
+      markValue(bound->method);
       break;
     }
 //< Methods and Initializers blacken-bound-method
