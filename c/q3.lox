@@ -1,0 +1,30 @@
+// Constructor function that creates a new vector with a given x and y coordinates.
+fun vector(x, y) {
+  
+  // Method that accesses the x and y coordinates of values returned from that constructor.
+  fun object(msg) {
+    
+    // Addition method that adds two vectors and produces a third.
+    fun add(otherV) {
+      return vector(x + otherV("x"), y + otherV("y"));
+    }
+
+    if (msg == "x") return x;
+    if (msg == "y") return y;
+    if (msg == "add") return add;
+    print "unknown message";
+  }
+
+  return object;
+}
+
+var v1 = vector(1, 5);
+var v2 = vector(4, 7);
+var sum = v1("add")(v2);
+
+print v1("x");
+print v1("y");
+print v2("x");
+print v2("y");
+print sum("x");
+print sum("y");
