@@ -1211,6 +1211,9 @@ static void forStatement() {
   beginScope();
 //< for-begin-scope
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+  bool hasLoopVariable = false;
+  int loopVariable = -1;
+  Token loopVariableName;
 /* Jumping Back and Forth for-statement < Jumping Back and Forth for-initializer
   consume(TOKEN_SEMICOLON, "Expect ';'.");
 */
@@ -1218,7 +1221,10 @@ static void forStatement() {
   if (match(TOKEN_SEMICOLON)) {
     // No initializer.
   } else if (match(TOKEN_VAR)) {
+    hasLoopVariable = true;
+    loopVariableName = parser.current;
     varDeclaration();
+    loopVariable = current->localCount - 1;
   } else {
     expressionStatement();
   }
@@ -1244,21 +1250,56 @@ static void forStatement() {
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
 */
 //> for-increment
+  // Jump over the increment clause to the loop body on the first iteration.
+  int bodyJump = emitJump(OP_JUMP);
+  int incrementStart = currentChunk()->count;
+
+  // Compile the increment while the control variable is still visible. The
+  // body gets its own binding below, after the increment has been emitted.
   if (!match(TOKEN_RIGHT_PAREN)) {
-    int bodyJump = emitJump(OP_JUMP);
-    int incrementStart = currentChunk()->count;
     expression();
     emitByte(OP_POP);
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
-
-    emitLoop(loopStart);
-    loopStart = incrementStart;
-    patchJump(bodyJump);
   }
-//< for-increment
+
+  if (hasLoopVariable) {
+    beginScope();
+    addLocal(loopVariableName);
+    markInitialized();
+  }
+
+  // The body falls through to this cleanup code. It is emitted before the
+  // body so the first-iteration jump can skip it, and later iterations can
+  // run it after the body and increment expression.
+  if (hasLoopVariable) emitByte(OP_CLOSE_UPVALUE);
+  emitLoop(loopStart);
+  patchJump(bodyJump);
+
+  if (hasLoopVariable) {
+    // Copy the control variable into a fresh stack slot for this iteration.
+    emitBytes(OP_GET_LOCAL, (uint8_t)loopVariable);
+  }
 
   statement();
-  emitLoop(loopStart);
+
+  if (hasLoopVariable) {
+    // The increment uses the outer control slot. Copy the body binding back
+    // first so assignments made in the body affect the next iteration.
+    emitBytes(OP_GET_LOCAL, (uint8_t)(loopVariable + 1));
+    emitBytes(OP_SET_LOCAL, (uint8_t)loopVariable);
+    emitByte(OP_POP);
+  }
+
+  // The body uses the fresh slot; the increment/cleanup block above runs
+  // after it and then starts the next iteration.
+  emitLoop(incrementStart);
+
+  if (hasLoopVariable) {
+    // Remove only the compiler metadata here. The runtime cleanup instruction
+    // was emitted before the body so the body can jump to the increment code.
+    current->scopeDepth--;
+    current->localCount--;
+  }
 //> exit-jump
 
   if (exitJump != -1) {
